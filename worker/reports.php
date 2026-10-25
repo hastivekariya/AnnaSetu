@@ -523,29 +523,31 @@ try {
                 $peopleCol = ($hasCount && $report === 'distribution')
                     ? ", t.beneficiary_count" : "";
 
-                $stmt = $pdo->prepare(
-                    "SELECT t.transaction_id, t.transaction_date, t.quantity, t.status,
-                            t.beneficiary_type, t.notes" . $peopleCol . ",
-                            f.item_name_en, f.item_name_gu, f.unit,
-                            u.full_name AS user_name,
-                            b.batch_number, b.expiry_date, b.supplier_name
-                     FROM stock_transactions t
-                     INNER JOIN food_items f ON f.item_id = t.item_id
-                     LEFT JOIN users u ON u.user_id = t.created_by
-                     LEFT JOIN stock_batches b ON b.batch_id = t.batch_id" .
-                    $where .
-                    " ORDER BY t.transaction_date DESC, t.transaction_id DESC
-                      LIMIT " . (int)$limit . " OFFSET " . (int)$offset
-                );
+                
+$stmt = $pdo->prepare(
+    "SELECT t.transaction_id, t.transaction_date, t.quantity, t.status,
+            t.beneficiary_type, t.notes" . $peopleCol . ",
+            f.item_name_en, f.item_name_gu, f.unit,
+            b.batch_number, b.expiry_date, b.supplier_name
+     FROM stock_transactions t
+     INNER JOIN food_items f ON f.item_id = t.item_id
+     LEFT JOIN stock_batches b ON b.batch_id = t.batch_id" .
+    $where .
+    " ORDER BY t.transaction_date DESC, t.transaction_id DESC
+      LIMIT " . (int)$limit . " OFFSET " . (int)$offset
+);
+
                 $stmt->execute($params);
                 $data = $stmt->fetchAll();
 
                 if ($report === 'consumption') {
                     $tableHead = [
-                        rpText('Date', 'તારીખ'), rpText('Food Item', 'ખાદ્ય વસ્તુ'),
-                        rpText('Quantity', 'જથ્થો'), rpText('Status', 'સ્થિતિ'),
-                        rpText('Recorded By', 'નોંધનાર'), rpText('Notes', 'નોંધ')
-                    ];
+    rpText('Date', 'તારીખ'),
+    rpText('Food Item', 'ખાદ્ય વસ્તુ'),
+    rpText('Quantity', 'જથ્થો'),
+    rpText('Status', 'સ્થિતિ'),
+    rpText('Notes', 'નોંધ')
+];
 
                     foreach ($data as $r) {
                         $tableRows[] = [
@@ -553,7 +555,6 @@ try {
                             ['t' => rpItemName($r), 'bold' => true],
                             ['t' => rpNumber($r['quantity']) . ' ' . $r['unit']],
                             $statusCell($r['status']),
-                            ['t' => $r['user_name'] ?? '-'],
                             ['t' => $r['notes'] ?: '-']
                         ];
                     }
@@ -571,7 +572,6 @@ try {
                     array_push(
                         $tableHead,
                         rpText('Status', 'સ્થિતિ'),
-                        rpText('Recorded By', 'નોંધનાર'),
                         rpText('Notes', 'નોંધ')
                     );
 
@@ -588,7 +588,6 @@ try {
                         }
 
                         $line[] = $statusCell($r['status']);
-                        $line[] = ['t' => $r['user_name'] ?? '-'];
                         $line[] = ['t' => $r['notes'] ?: '-'];
                         $tableRows[] = $line;
                     }
@@ -597,7 +596,7 @@ try {
                         rpText('Date', 'તારીખ'), rpText('Food Item', 'ખાદ્ય વસ્તુ'),
                         rpText('Quantity', 'જથ્થો'), rpText('Batch', 'બેચ'),
                         rpText('Supplier', 'સપ્લાયર'), rpText('Expiry Date', 'સમાપ્તિ તારીખ'),
-                        rpText('Status', 'સ્થિતિ'), rpText('Recorded By', 'નોંધનાર')
+                        rpText('Status', 'સ્થિતિ')
                     ];
 
                     foreach ($data as $r) {
@@ -609,7 +608,6 @@ try {
                             ['t' => $r['supplier_name'] ?: '-'],
                             ['t' => $r['expiry_date'] ? rpShowDate($r['expiry_date']) : '-'],
                             $statusCell($r['status']),
-                            ['t' => $r['user_name'] ?? '-']
                         ];
                     }
                 }

@@ -184,17 +184,15 @@ try {
             : $validIds[0];
 
         $baseFrom =
-            " FROM stock_transactions t
-              INNER JOIN food_items f ON f.item_id = t.item_id
-              LEFT JOIN users u ON u.user_id = t.created_by
-              LEFT JOIN stock_batches b ON b.batch_id = t.batch_id";
+    " FROM stock_transactions t
+      INNER JOIN food_items f ON f.item_id = t.item_id
+      LEFT JOIN stock_batches b ON b.batch_id = t.batch_id";
 
         $selectColumns =
             "SELECT t.transaction_id, t.transaction_type, t.quantity, t.status,
                     t.transaction_date, t.beneficiary_type, t.notes,
                     f.item_name_en, f.item_name_gu, f.unit,
-                    u.full_name AS user_name,
-                    b.batch_number,
+b.batch_number,
                     (SELECT v.comments
                        FROM stock_verifications v
                       WHERE v.transaction_id = t.transaction_id
@@ -682,7 +680,7 @@ $hasFilters = ($search !== '' || $typeFilter !== '' || $statusFilter !== ''
 
                                             <td><?= shEscape($row['batch_number'] ?? '-') ?></td>
 
-                                            <td><?= shEscape($row['user_name'] ?? '-') ?></td>
+                                            <td>-</td>
 
                                             <td>
                                                 <span class="status-badge <?= shEscape($statusInfo[1]) ?>">

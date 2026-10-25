@@ -318,15 +318,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // and remarks are stored on the same row).
                     $stmt = $pdo->prepare(
                         "INSERT INTO stock_transactions
-                            (client_transaction_id, centre_id, item_id, batch_id,
-                             created_by, transaction_type, quantity,
-                             transaction_date, beneficiary_type,
-                             beneficiary_count, notes, status)
-                         VALUES
-                            (:client_id, :centre_id, :item_id, :batch_id,
-                             :created_by, 'DISTRIBUTION', :quantity,
-                             :transaction_date, :beneficiary_type,
-                             :beneficiary_count, :notes, 'PENDING')"
+(client_transaction_id, centre_id, item_id, batch_id,
+ transaction_type, quantity, transaction_date,
+ beneficiary_type, beneficiary_count, notes, status)
+VALUES
+(:client_id, :centre_id, :item_id, :batch_id,
+ 'DISTRIBUTION', :quantity, :transaction_date,
+ :beneficiary_type, :beneficiary_count, :notes, 'PENDING')"
                     );
 
                     $stmt->execute([
@@ -334,7 +332,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'centre_id' => $centreId,
                         'item_id' => $itemId,
                         'batch_id' => $batchId,
-                        'created_by' => $userId,
                         'quantity' => $quantity,
                         'transaction_date' => $distributionDate . ' ' . date('H:i:s'),
                         'beneficiary_type' => $beneficiaryType,
@@ -378,17 +375,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
         } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
 
-            error_log('Distribution save error: ' . $e->getMessage());
+    error_log('Distribution save error: ' . $e->getMessage());
 
-            $errors[] = bdText(
-                'Unable to save the distribution entry. Please try again.',
-                'વિતરણની નોંધ સાચવી શકાઈ નથી. કૃપા કરીને ફરી પ્રયત્ન કરો.'
-            );
-        }
+    // Temporary debugging: use only on your local development server.
+    $errors[] = 'Debug error: ' . $e->getMessage();
+}
     }
 }
 

@@ -43,19 +43,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = translate('fill_all_fields');
     } else {
         try {
-            $sql = "SELECT
-                        u.user_id,
-                        u.full_name,
-                        u.username,
-                        u.password_hash,
-                        u.preferred_language,
-                        u.is_active,
-                        r.role_name
-                    FROM users u
-                    INNER JOIN roles r ON u.role_id = r.role_id
-                    WHERE u.username = :username
-                       OR u.mobile_number = :mobile
-                    LIMIT 1";
+            $sql  = "SELECT
+            u.user_id,
+            u.centre_id,
+            u.full_name,
+            u.username,
+            u.password_hash,
+            u.preferred_language,
+            u.is_active,
+            r.role_name
+        FROM users u
+        INNER JOIN roles r ON u.role_id = r.role_id
+        WHERE u.username = :username
+           OR u.mobile_number = :mobile
+        LIMIT 1";
 
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
@@ -74,8 +75,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 session_regenerate_id(true);
 
                 $_SESSION['user_id'] = (int) $user['user_id'];
-                $_SESSION['full_name'] = $user['full_name'];
-                $_SESSION['role'] = strtolower($user['role_name']);
+$_SESSION['centre_id'] = (int) ($user['centre_id'] ?? 0);
+$_SESSION['full_name'] = $user['full_name'];
+$_SESSION['role'] = strtolower($user['role_name']);
 
                 // Save the user's preferred language.
                 if (in_array($user['preferred_language'], ['en', 'gu'], true)) {

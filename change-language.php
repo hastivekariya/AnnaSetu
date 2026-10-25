@@ -31,6 +31,6 @@ if (
 }
 
 // Fallback if return URL is missing or invalid
-header('Location: ' . AnnaSetu . '/index.php');
+header('Location: /AnnaSetu/index.php');
 exit;
 ?>

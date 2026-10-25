@@ -1,16 +1,10 @@
+
 <?php
-/*
- * daily-consumption.php
- * Place in: /worker/daily-consumption.php and /helper/daily-consumption.php
- * (helper version can simply be: require __DIR__ . '/../worker/daily-consumption.php';)
- *
- * ASSUMPTIONS - adjust to your real schema:
- *   stock_transactions(transaction_id, item_id, centre_id, user_id,
- *                      transaction_type, quantity, status, remarks,
- *                      transaction_date, created_at)
- *   food_items(item_id, item_name_en, item_name_gu, default_min_stock)
- *   $_SESSION['user_id'] and $_SESSION['centre_id'] are set at login.
- */
+$userId   = (int) ($_SESSION['user_id'] ?? 0);
+$centreId = (int) ($_SESSION['centre_id'] ?? 0);
+
+echo "Logged-in User ID: " . $userId;
+echo "<br>Logged-in Centre ID: " . $centreId;
 
 require_once __DIR__ . '/../includes/init.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -98,8 +92,7 @@ function getBalances(PDO $pdo, int $centreId, ?int $itemId = null): array
             FROM food_items f
             LEFT JOIN stock_transactions t
                 ON t.item_id = f.item_id
-               AND t.centre_id = :centre
-               AND UPPER(t.status) = 'APPROVED'";
+               AND t.centre_id = :centre";
     if ($itemId !== null) {
         $sql .= " WHERE f.item_id = :item";
     }
@@ -160,21 +153,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->rollBack();
             } else {
                 $stmt = $pdo->prepare(
-                    "INSERT INTO stock_transactions
-                        (item_id, centre_id, user_id, transaction_type,
-                         quantity, status, remarks, transaction_date, created_at)
-                     VALUES
-                        (:item, :centre, :user, 'CONSUMPTION',
-                         :qty, 'PENDING', :remarks, :tdate, NOW())"
+                    "INSERT INTO stock_transactions (
+    item_id,
+    centre_id,
+    transaction_type,
+    quantity,
+    status
+) VALUES (
+    :item_id,
+    :centre_id,
+    'CONSUMPTION',
+    :quantity,
+    'PENDING'
+)"
                 );
                 $stmt->execute([
-                    ':item'    => $old['item_id'],
-                    ':centre'  => $centreId,
-                    ':user'    => $userId,
-                    ':qty'     => $quantity,
-                    ':remarks' => $old['remarks'] !== '' ? $old['remarks'] : null,
-                    ':tdate'   => $old['date'],
-                ]);
+    ':item_id'   => $old['item_id'],
+    ':centre_id' => $centreId,
+    ':quantity'  => $quantity,
+]);
                 $pdo->commit();
 
                 $_SESSION['flash'] = [
@@ -192,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->rollBack();
             }
             error_log('Daily consumption error: ' . $ex->getMessage());
-            $errors[] = t('database_error', 'Database error. Please try again.');
+            $errors[] = 'Database error: ' . $ex->getMessage();
         }
     }
 }
@@ -322,29 +319,7 @@ try {
     </form>
 </header>
 
-                
-<form action="<?= APP_URL ?>/change-language.php" method="POST" class="language-form">
-    <input
-        type="hidden"
-        name="return_to"
-        value="<?= e($_SERVER['REQUEST_URI']) ?>"
-    >
 
-    <label for="language">
-        <?= t('language', 'Language') ?>
-    </label>
-
-    <select name="language" id="language" onchange="this.form.submit()">
-        <option value="gu" <?= $language === 'gu' ? 'selected' : '' ?>>
-            ગુજરાતી
-        </option>
-        <option value="en" <?= $language === 'en' ? 'selected' : '' ?>>
-            English
-        </option>
-    </select>
-</form>
-
-            </header>
 
             <?php if ($flash): ?>
                 <div class="alert alert-<?= $flash['type'] === 'success' ? 'success' : 'danger' ?>">
