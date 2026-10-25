@@ -1,0 +1,317 @@
+/* =====================================================
+   reports.css
+   Load AFTER dashboard.css and receive-stock.css
+===================================================== */
+
+.reports-content {
+  max-width: 1300px;
+}
+
+.print-only {
+  display: none;
+}
+
+/* ---------- Report selector ---------- */
+
+.report-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.report-tab {
+  display: block;
+  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid #e0ebe5;
+  border-radius: 13px;
+  color: #205744;
+  box-shadow: 0 4px 14px rgba(26, 50, 75, 0.04);
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.report-tab strong {
+  display: block;
+  font-size: 16px;
+  color: #123e34;
+}
+
+.report-tab span {
+  display: block;
+  margin-top: 4px;
+  color: #718096;
+  font-size: 13px;
+}
+
+.report-tab:hover {
+  background: #f1faf5;
+  transform: translateY(-2px);
+}
+
+.report-tab.active {
+  background: #176f56;
+  border-color: #176f56;
+}
+
+.report-tab.active strong,
+.report-tab.active span {
+  color: #ffffff;
+}
+
+/* ---------- Filters ---------- */
+
+.report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.filter-field {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
+.filter-field label {
+  display: block;
+  margin-bottom: 6px;
+  color: #123e34;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-filters .form-control,
+.report-filters .form-select {
+  min-height: 46px;
+  border-radius: 10px;
+  border-color: #d9e0e8;
+}
+
+.report-filters .form-control:focus,
+.report-filters .form-select:focus {
+  border-color: #218568;
+  box-shadow: 0 0 0 0.2rem rgba(33, 133, 104, 0.12);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-actions .btn {
+  min-height: 46px;
+}
+
+/* ---------- Summary cards ---------- */
+
+.report-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  margin-bottom: 26px;
+}
+
+.report-stats .stat-card h3 {
+  font-size: 22px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.report-stats .stat-card small {
+  display: block;
+  margin-top: 6px;
+  color: #718096;
+  font-size: 13px;
+}
+
+.report-stats .card-receipt {
+  border-left-color: #287d62;
+}
+.report-stats .card-consumption {
+  border-left-color: #2f6fb3;
+}
+.report-stats .card-distribution {
+  border-left-color: #8a5bb5;
+}
+.report-stats .card-pending {
+  border-left-color: #e0a800;
+}
+.report-stats .card-rejected {
+  border-left-color: #c93a3a;
+}
+
+/* ---------- Tools + table ---------- */
+
+.report-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.report-tools .btn {
+  border: 1px solid #d5e5dd;
+  background: #ffffff;
+  color: #245643;
+  font-weight: 600;
+}
+
+.report-tools .btn:hover {
+  background: #e9f5ef;
+}
+
+.report-table {
+  min-width: 760px;
+}
+
+.report-table td {
+  overflow-wrap: anywhere;
+}
+
+.report-footnote {
+  margin: 16px 0 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+/* ---------- Badges ---------- */
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-in {
+  background: #e8f7ee;
+  color: #17633a;
+}
+.status-low {
+  background: #fff8e5;
+  color: #805b00;
+}
+.status-out {
+  background: #fff0f0;
+  color: #a52828;
+}
+.status-pending {
+  background: #fff8e5;
+  color: #805b00;
+}
+.status-approved {
+  background: #e8f7ee;
+  color: #17633a;
+}
+.status-rejected {
+  background: #fff0f0;
+  color: #a52828;
+}
+
+/* ---------- Pagination ---------- */
+
+.report-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.page-link-btn {
+  padding: 9px 16px;
+  border: 1px solid #d5e5dd;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #245643;
+  font-weight: 600;
+}
+
+.page-link-btn:hover {
+  background: #e9f5ef;
+}
+
+.page-info {
+  color: #718096;
+  font-size: 14px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1000px) {
+  .report-tabs,
+  .report-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .report-tabs,
+  .report-stats {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+
+  .filter-actions {
+    width: 100%;
+  }
+
+  .filter-actions .btn {
+    flex: 1;
+  }
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  .sidebar,
+  .back-dashboard,
+  .receive-heading,
+  .report-tabs,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .print-heading h2 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    color: #123e34;
+  }
+
+  .print-heading p {
+    margin: 0;
+    color: #445166;
+  }
+
+  .dashboard-layout {
+    display: block;
+  }
+
+  .dashboard-main {
+    padding: 0;
+  }
+
+  .dashboard-section,
+  .stat-card {
+    box-shadow: none;
+  }
+
+  .table-responsive {
+    overflow: visible;
+  }
+
+  .report-table {
+    min-width: 0;
+  }
+}

@@ -1,14 +1,23 @@
-/* ---------- Reset ---------- */
+/* =====================================================
+   1. RESET AND GLOBAL STYLES
+===================================================== */
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+html {
+  min-height: 100%;
+}
+
 body {
+  min-height: 100vh;
   font-family: Arial, Helvetica, sans-serif;
   background: #f4f7fb;
   color: #243047;
+  line-height: 1.5;
 }
 
 a {
@@ -16,16 +25,44 @@ a {
   color: inherit;
 }
 
-/* ---------- Main Layout ---------- */
-.dashboard-layout {
-  display: flex;
-  min-height: 100vh;
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
-/* ---------- Sidebar ---------- */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* =====================================================
+   2. MAIN DASHBOARD LAYOUT
+===================================================== */
+
+.dashboard-layout {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.dashboard-main {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 32px;
+  overflow-wrap: anywhere;
+}
+
+/* =====================================================
+   3. SIDEBAR
+===================================================== */
+
 .sidebar {
   width: 260px;
   min-width: 260px;
+  flex-shrink: 0;
   background: #123b32;
   color: #ffffff;
   display: flex;
@@ -35,52 +72,8 @@ a {
 
 .sidebar-brand {
   text-align: center;
-  padding-bottom: 24px;
+  padding: 0 0 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  padding: 20px;
-  margin-bottom: 24px;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-}
-
-.page-header h2 {
-  margin: 0 0 8px;
-  font-size: 24px;
-  color: #173b2b;
-}
-
-.page-header p {
-  margin: 0;
-  color: #68756d;
-}
-
-.language-form {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.language-form select {
-  padding: 9px 12px;
-  border: 1px solid #ced8d0;
-  border-radius: 8px;
-  background: white;
-}
-
-@media (max-width: 600px) {
-  .page-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 
 .sidebar-brand h3 {
@@ -129,7 +122,10 @@ a {
   font-size: 12px;
 }
 
-/* ---------- Sidebar Navigation ---------- */
+/* =====================================================
+   4. SIDEBAR NAVIGATION
+===================================================== */
+
 .sidebar-menu {
   display: flex;
   flex-direction: column;
@@ -142,6 +138,7 @@ a {
   border-radius: 8px;
   color: #e7f5ee;
   font-size: 14px;
+  line-height: 1.6;
   transition:
     background 0.2s ease,
     padding 0.2s ease;
@@ -161,7 +158,6 @@ a {
   display: block;
   margin-top: auto;
   padding: 13px 14px;
-  margin-top: 25px;
   border-radius: 8px;
   background: #ffffff;
   color: #123b32;
@@ -174,35 +170,63 @@ a {
   background: #d8f3dc;
 }
 
-/* ---------- Main Content ---------- */
-.dashboard-main {
-  flex: 1;
-  min-width: 0;
-  padding: 30px;
-}
+/* =====================================================
+   5. WELCOME HEADER
+   Use .page-header OR .dashboard-header as needed.
+===================================================== */
 
-/* ---------- Header ---------- */
+.page-header,
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 20px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin: 0 0 26px;
+  background: #ffffff;
+}
+
+.page-header {
+  padding: 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(20, 50, 40, 0.06);
+}
+
+.page-header h2,
+.dashboard-header h2 {
+  margin: 0 0 6px;
+  color: #173b32;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.page-header p,
+.dashboard-header p {
+  margin: 0;
+  color: #68756d;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.dashboard-header {
   margin-bottom: 30px;
+  background: transparent;
 }
 
 .dashboard-header h2 {
   font-size: 27px;
-  font-weight: 700;
-  color: #173b32;
-  margin-bottom: 8px;
-  overflow-wrap: anywhere;
 }
 
 .dashboard-header p {
   color: #718096;
   font-size: 14px;
-  margin-bottom: 0;
 }
+
+/* =====================================================
+   6. LANGUAGE SELECTOR
+===================================================== */
 
 .language-form {
   display: flex;
@@ -212,16 +236,21 @@ a {
 }
 
 .language-form label {
+  color: #334155;
   font-size: 14px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .language-form select {
+  min-width: 120px;
+  max-width: 100%;
   padding: 10px 12px;
   border: 1px solid #d6dfeb;
-  border-radius: 8px;
+  border-radius: 9px;
   background: #ffffff;
   color: #243047;
+  cursor: pointer;
   outline: none;
 }
 
@@ -230,7 +259,144 @@ a {
   box-shadow: 0 0 0 3px rgba(40, 125, 98, 0.12);
 }
 
-/* ---------- Statistics Cards ---------- */
+/* =====================================================
+   7. PAGE CONTENT AND FORMS
+===================================================== */
+
+.page-content {
+  width: 100%;
+  max-width: 1450px;
+  margin: 0 auto;
+}
+
+.page-content h1 {
+  margin: 0 0 12px;
+  color: #123f32;
+  font-size: 32px;
+  line-height: 1.4;
+}
+
+.page-description {
+  margin-bottom: 26px;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.form-card {
+  width: 100%;
+  margin: 24px auto;
+  padding: 30px;
+  background: #ffffff;
+  border: 1px solid #e5ebf0;
+  border-radius: 18px;
+  box-shadow: 0 8px 28px rgba(20, 50, 40, 0.05);
+}
+
+.form-card label {
+  display: block;
+  margin-bottom: 9px;
+  color: #173b32;
+  font-weight: 600;
+}
+
+.form-card input,
+.form-card select,
+.form-card textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #d5dee8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #243047;
+}
+
+.form-card textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-card input:focus,
+.form-card select:focus,
+.form-card textarea:focus {
+  outline: 2px solid #b7e4d1;
+  border-color: #26745b;
+}
+
+.form-card input::placeholder,
+.form-card textarea::placeholder {
+  color: #8a96a8;
+}
+
+/* =====================================================
+   8. FORM GRID
+   Use .form-grid around the form fields if available.
+===================================================== */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 28px;
+}
+
+.form-group {
+  min-width: 0;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+/* =====================================================
+   9. BUTTONS
+===================================================== */
+
+.btn,
+button[type="submit"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 11px 20px;
+  border: none;
+  border-radius: 9px;
+  background: #246b56;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.btn:hover,
+button[type="submit"]:hover {
+  background: #123b32;
+}
+
+.btn:active,
+button[type="submit"]:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  background: #edf3f0;
+  color: #245643;
+}
+
+.btn-secondary:hover {
+  background: #dcebe4;
+}
+
+/* =====================================================
+   10. STATISTICS CARDS
+===================================================== */
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -239,6 +405,7 @@ a {
 }
 
 .stat-card {
+  min-width: 0;
   padding: 23px;
   background: #ffffff;
   border-radius: 13px;
@@ -267,7 +434,10 @@ a {
   font-weight: 700;
 }
 
-/* ---------- Dashboard Sections ---------- */
+/* =====================================================
+   11. DASHBOARD SECTIONS
+===================================================== */
+
 .dashboard-section {
   background: #ffffff;
   border: 1px solid #e8edf4;
@@ -298,7 +468,10 @@ a {
   font-size: 13px;
 }
 
-/* ---------- Quick Actions ---------- */
+/* =====================================================
+   12. QUICK ACTIONS
+===================================================== */
+
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -327,15 +500,21 @@ a {
   transform: translateY(-2px);
 }
 
-/* ---------- Transactions Table ---------- */
+/* =====================================================
+   13. TABLES
+===================================================== */
+
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
+  width: 100%;
   margin-bottom: 0;
   min-width: 650px;
+  border-collapse: collapse;
 }
 
 .table thead th {
@@ -346,6 +525,7 @@ a {
   white-space: nowrap;
   padding: 14px;
   border-bottom: 1px solid #dcebe4;
+  text-align: left;
 }
 
 .table tbody td {
@@ -353,9 +533,17 @@ a {
   font-size: 13px;
   color: #445166;
   vertical-align: middle;
+  border-bottom: 1px solid #edf1f5;
 }
 
-/* ---------- Empty State ---------- */
+.table tbody tr:hover {
+  background: #f8fbf9;
+}
+
+/* =====================================================
+   14. EMPTY STATE
+===================================================== */
+
 .empty-state {
   padding: 35px 20px;
   text-align: center;
@@ -366,14 +554,39 @@ a {
   font-size: 14px;
 }
 
-/* ---------- Error Message ---------- */
+/* =====================================================
+   15. ALERTS
+===================================================== */
+
 .alert {
   border-radius: 10px;
   padding: 16px;
   margin-bottom: 24px;
+  overflow-wrap: anywhere;
 }
 
-/* ---------- Tablet ---------- */
+.alert-success {
+  background: #e8f7ee;
+  border: 1px solid #b7e4c7;
+  color: #17633a;
+}
+
+.alert-danger {
+  background: #fff0f0;
+  border: 1px solid #f2c1c1;
+  color: #a52828;
+}
+
+.alert-warning {
+  background: #fff8e5;
+  border: 1px solid #f3df9a;
+  color: #805b00;
+}
+
+/* =====================================================
+   16. TABLET RESPONSIVE
+===================================================== */
+
 @media (max-width: 1000px) {
   .sidebar {
     width: 220px;
@@ -390,11 +603,21 @@ a {
 
   .dashboard-header {
     align-items: flex-start;
-    flex-direction: column;
+  }
+
+  .form-card {
+    padding: 24px;
+  }
+
+  .form-grid {
+    gap: 20px;
   }
 }
 
-/* ---------- Mobile ---------- */
+/* =====================================================
+   17. MOBILE RESPONSIVE
+===================================================== */
+
 @media (max-width: 650px) {
   .dashboard-layout {
     flex-direction: column;
@@ -438,6 +661,25 @@ a {
     padding: 17px;
   }
 
+  .page-header {
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .page-header h2 {
+    font-size: 21px;
+  }
+
+  .page-header p {
+    font-size: 14px;
+  }
+
+  .dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
   .dashboard-header h2 {
     font-size: 22px;
   }
@@ -469,5 +711,46 @@ a {
 
   .section-heading h3 {
     font-size: 17px;
+  }
+
+  .form-card {
+    padding: 20px 16px;
+    border-radius: 13px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .form-actions .btn,
+  .form-actions button {
+    width: 100%;
+  }
+}
+
+/* =====================================================
+   18. GUJARATI TEXT SUPPORT
+===================================================== */
+
+:lang(gu) {
+  line-height: 1.7;
+}
+
+.sidebar:lang(gu) .menu-link {
+  line-height: 1.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

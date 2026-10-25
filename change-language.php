@@ -1,32 +1,36 @@
 
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-require_once __DIR__ . '/includes/init.php';
-require_once __DIR__ . '/includes/auth.php';
+// Allow only English and Gujarati
+$language = $_POST['language'] ?? 'en';
 
-requireLogin();
+if (!in_array($language, ['en', 'gu'], true)) {
+    $language = 'en';
+}
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ' . APP_URL . '/' . strtolower($_SESSION['role']) . '/dashboard.php');
+// Save language
+$_SESSION['language'] = $language;
+
+// Get the requested return URL
+$returnTo = $_POST['return_to'] ?? '';
+
+// Redirect to the previous local page
+if (
+    is_string($returnTo) &&
+    $returnTo !== '' &&
+    str_starts_with($returnTo, '/') &&
+    !str_starts_with($returnTo, '//') &&
+    strpos($returnTo, '://') === false &&
+    strpos($returnTo, '..') === false
+) {
+    header('Location: ' . $returnTo);
     exit;
 }
 
-$language = $_POST['language'] ?? 'gu';
-
-if (in_array($language, ['en', 'gu'], true)) {
-    $_SESSION['language'] = $language;
-
-    $stmt = $pdo->prepare(
-        "UPDATE users SET preferred_language = :language WHERE user_id = :user_id"
-    );
-
-    $stmt->execute([
-        'language' => $language,
-        'user_id' => $_SESSION['user_id']
-    ]);
-}
-
-$role = strtolower($_SESSION['role'] ?? 'worker');
-
-header('Location: ' . APP_URL . '/' . $role . '/dashboard.php');
+// Fallback if return URL is missing or invalid
+header('Location: ' . AnnaSetu . '/index.php');
 exit;
+?>

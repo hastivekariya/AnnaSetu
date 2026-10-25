@@ -1,989 +1,502 @@
 <?php
+/*
+ * daily-consumption.php
+ * Place in: /worker/daily-consumption.php and /helper/daily-consumption.php
+ * (helper version can simply be: require __DIR__ . '/../worker/daily-consumption.php';)
+ *
+ * ASSUMPTIONS - adjust to your real schema:
+ *   stock_transactions(transaction_id, item_id, centre_id, user_id,
+ *                      transaction_type, quantity, status, remarks,
+ *                      transaction_date, created_at)
+ *   food_items(item_id, item_name_en, item_name_gu, default_min_stock)
+ *   $_SESSION['user_id'] and $_SESSION['centre_id'] are set at login.
+ */
+
 require_once __DIR__ . '/../includes/init.php';
 require_once __DIR__ . '/../includes/auth.php';
 
-requireRole(['WORKER', 'HELPER']);
-
 $role = strtolower($_SESSION['role'] ?? 'worker');
-$userId = (int) ($_SESSION['user_id'] ?? 0);
+
+if (!in_array($role, ['worker', 'helper'], true)) {
+    header('Location: ' . APP_URL . '/' . $role . '/dashboard.php');
+    exit;
+}
+
 $fullName = $_SESSION['full_name'] ?? 'User';
 $language = $_SESSION['language'] ?? 'gu';
+$userId   = (int) ($_SESSION['user_id'] ?? 0);
+$centreId = (int) ($_SESSION['centre_id'] ?? 0);
 
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+/* ---------- Helpers ---------- */
 
-$message = '';
-$messageType = '';
-
-// Translate a page label.
-function consumptionText($english, $gujarati)
-{
-    $language = $_SESSION['language'] ?? 'gu';
-    return $language === 'gu' ? $gujarati : $english;
-}
-
-// Escape output.
-function consumptionEscape($value)
+function e($value)
 {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
-// Find centres the logged-in user can access.
-function getConsumptionCentres($pdo, $userId)
+// Uses translate(); falls back to English if the key is missing.
+function t($key, $fallback)
 {
-    $sql = "
-        SELECT DISTINCT c.centre_id, c.centre_name, c.centre_code
-        FROM anganwadi_centres c
-        LEFT JOIN users u ON u.centre_id = c.centre_id
-        LEFT JOIN centre_assignments ca
-            ON ca.centre_id = c.centre_id
-            AND ca.user_id = :assignment_user
-            AND ca.is_active = 1
-        WHERE c.is_active = 1
-          AND (
-              u.user_id = :direct_user
-              OR ca.user_id = :assigned_user
-          )
-        ORDER BY c.centre_name
-    ";
+    $text = translate($key);
+    return e(($text === '' || $text === $key) ? $fallback : $text);
+}
+
+function itemName($row)
+{
+    global $language;
+    if ($language === 'gu' && !empty($row['item_name_gu'])) {
+        return $row['item_name_gu'];
+    }
+    return $row['item_name_en'] ?? 'Food item';
+}
+
+/* ---------- Menus (same as dashboard) ---------- */
+
+$menus = [
+    'worker' => [
+        ['dashboard', 'Dashboard', 'dashboard.php'],
+        ['receive_stock', 'Receive Stock', 'receive-stock.php'],
+        ['daily_consumption', 'Daily Consumption', 'daily-consumption.php'],
+        ['beneficiary_distribution', 'Beneficiary Distribution', 'distribution.php'],
+        ['current_stock', 'Current Stock', 'current-stock.php'],
+        ['stock_history', 'Stock History', 'stock-history.php'],
+        ['reports', 'Reports', 'reports.php'],
+        ['notifications', 'Notifications', 'notifications.php'],
+        ['my_profile', 'My Profile', 'profile.php'],
+    ],
+    'helper' => [
+        ['dashboard', 'Dashboard', 'dashboard.php'],
+        ['daily_consumption', 'Daily Consumption', 'daily-consumption.php'],
+        ['beneficiary_distribution', 'Beneficiary Distribution', 'distribution.php'],
+        ['current_stock', 'Current Stock', 'current-stock.php'],
+        ['my_profile', 'My Profile', 'profile.php'],
+    ],
+];
+$menuItems = $menus[$role];
+
+/* ---------- CSRF + flash ---------- */
+
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$flash = $_SESSION['flash'] ?? null;
+unset($_SESSION['flash']);
+
+$errors = [];
+$old = ['item_id' => '', 'quantity' => '', 'date' => date('Y-m-d'), 'remarks' => ''];
+
+/* ---------- Balance query (approved stock only) ---------- */
+
+function getBalances(PDO $pdo, int $centreId, ?int $itemId = null): array
+{
+    $sql = "SELECT f.item_id, f.item_name_en, f.item_name_gu,
+                COALESCE(SUM(CASE
+                    WHEN UPPER(t.transaction_type) = 'RECEIPT' THEN t.quantity
+                    WHEN UPPER(t.transaction_type) IN ('CONSUMPTION','DISTRIBUTION') THEN -t.quantity
+                    ELSE 0 END), 0) AS balance
+            FROM food_items f
+            LEFT JOIN stock_transactions t
+                ON t.item_id = f.item_id
+               AND t.centre_id = :centre
+               AND UPPER(t.status) = 'APPROVED'";
+    if ($itemId !== null) {
+        $sql .= " WHERE f.item_id = :item";
+    }
+    $sql .= " GROUP BY f.item_id, f.item_name_en, f.item_name_gu
+              ORDER BY f.item_name_en";
 
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        'assignment_user' => $userId,
-        'direct_user' => $userId,
-        'assigned_user' => $userId
-    ]);
-
+    $params = [':centre' => $centreId];
+    if ($itemId !== null) {
+        $params[':item'] = $itemId;
+    }
+    $stmt->execute($params);
     return $stmt->fetchAll();
 }
 
-try {
-    $centres = getConsumptionCentres($pdo, $userId);
+/* ---------- Handle form submit ---------- */
 
-    // Submit daily consumption.
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (
-            !isset($_POST['csrf_token']) ||
-            !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
-        ) {
-            throw new Exception('Your session expired. Refresh the page and try again.');
-        }
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-        $centreId = filter_input(INPUT_POST, 'centre_id', FILTER_VALIDATE_INT);
-        $batchId = filter_input(INPUT_POST, 'batch_id', FILTER_VALIDATE_INT);
-        $quantity = filter_input(INPUT_POST, 'quantity', FILTER_VALIDATE_FLOAT);
-        $transactionDate = trim($_POST['transaction_date'] ?? '');
-        $notes = trim($_POST['notes'] ?? '');
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
+        $errors[] = t('invalid_request', 'Invalid request. Please try again.');
+    }
 
-        if (!$centreId || !$batchId || $quantity === false || $quantity <= 0) {
-            throw new Exception('Please enter a valid centre, batch and quantity.');
-        }
+    $old['item_id']  = (int) ($_POST['item_id'] ?? 0);
+    $old['quantity'] = trim($_POST['quantity'] ?? '');
+    $old['date']     = trim($_POST['consumption_date'] ?? '');
+    $old['remarks']  = trim($_POST['remarks'] ?? '');
 
-        if (
-            !preg_match('/^\d{4}-\d{2}-\d{2}$/', $transactionDate) ||
-            !checkdate(
-                (int) substr($transactionDate, 5, 2),
-                (int) substr($transactionDate, 8, 2),
-                (int) substr($transactionDate, 0, 4)
-            )
-        ) {
-            throw new Exception('Please select a valid transaction date.');
-        }
+    $quantity = filter_var($old['quantity'], FILTER_VALIDATE_FLOAT);
+    $dateObj  = DateTime::createFromFormat('Y-m-d', $old['date']);
+    $dateOk   = $dateObj && $dateObj->format('Y-m-d') === $old['date'];
 
-        if ($transactionDate > date('Y-m-d')) {
-            throw new Exception('The consumption date cannot be in the future.');
-        }
+    if ($old['item_id'] <= 0) {
+        $errors[] = t('err_select_item', 'Please select a food item.');
+    }
+    if ($quantity === false || $quantity <= 0) {
+        $errors[] = t('err_quantity', 'Enter a quantity greater than zero.');
+    }
+    if (!$dateOk || $old['date'] > date('Y-m-d')) {
+        $errors[] = t('err_date', 'Enter a valid date (not in the future).');
+    }
+    if (mb_strlen($old['remarks']) > 255) {
+        $errors[] = t('err_remarks', 'Remarks must be 255 characters or fewer.');
+    }
 
-        // Check whether the selected centre belongs to this user.
-        $allowedCentre = false;
+    if (!$errors) {
+        try {
+            $pdo->beginTransaction();
 
-        foreach ($centres as $centre) {
-            if ((int) $centre['centre_id'] === (int) $centreId) {
-                $allowedCentre = true;
-                break;
+            // Re-check balance inside the transaction
+            $rows = getBalances($pdo, $centreId, $old['item_id']);
+
+            if (!$rows) {
+                $errors[] = t('err_select_item', 'Please select a food item.');
+                $pdo->rollBack();
+            } elseif ($quantity > (float) $rows[0]['balance']) {
+                $errors[] = t('err_insufficient', 'Quantity is more than the available stock.');
+                $pdo->rollBack();
+            } else {
+                $stmt = $pdo->prepare(
+                    "INSERT INTO stock_transactions
+                        (item_id, centre_id, user_id, transaction_type,
+                         quantity, status, remarks, transaction_date, created_at)
+                     VALUES
+                        (:item, :centre, :user, 'CONSUMPTION',
+                         :qty, 'PENDING', :remarks, :tdate, NOW())"
+                );
+                $stmt->execute([
+                    ':item'    => $old['item_id'],
+                    ':centre'  => $centreId,
+                    ':user'    => $userId,
+                    ':qty'     => $quantity,
+                    ':remarks' => $old['remarks'] !== '' ? $old['remarks'] : null,
+                    ':tdate'   => $old['date'],
+                ]);
+                $pdo->commit();
+
+                $_SESSION['flash'] = [
+                    'type' => 'success',
+                    'text' => translate('consumption_saved') !== 'consumption_saved'
+                        ? translate('consumption_saved')
+                        : 'Consumption recorded. It is awaiting supervisor verification.',
+                ];
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                header('Location: daily-consumption.php');
+                exit;
             }
+        } catch (PDOException $ex) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Daily consumption error: ' . $ex->getMessage());
+            $errors[] = t('database_error', 'Database error. Please try again.');
         }
-
-        if (!$allowedCentre) {
-            throw new Exception('You do not have permission to use this centre.');
-        }
-
-        // Verify that the selected batch belongs to the selected centre.
-        $stmt = $pdo->prepare("
-            SELECT
-                b.batch_id,
-                b.item_id,
-                b.expiry_date,
-                f.item_name_en,
-                f.item_name_gu,
-                f.unit
-            FROM stock_batches b
-            JOIN food_items f ON f.item_id = b.item_id
-            WHERE b.batch_id = :batch_id
-              AND b.centre_id = :centre_id
-              AND f.is_active = 1
-            LIMIT 1
-        ");
-
-        $stmt->execute([
-            'batch_id' => $batchId,
-            'centre_id' => $centreId
-        ]);
-
-        $batch = $stmt->fetch();
-
-        if (!$batch) {
-            throw new Exception('The selected batch was not found for this centre.');
-        }
-
-        if (
-            !empty($batch['expiry_date']) &&
-            $batch['expiry_date'] < $transactionDate
-        ) {
-            throw new Exception('This batch was expired on the selected consumption date.');
-        }
-
-        // Check approved stock and pending consumption.
-        $pdo->beginTransaction();
-
-        $stmt = $pdo->prepare("
-            SELECT
-                COALESCE(SUM(
-                    CASE
-                        WHEN transaction_type = 'RECEIPT'
-                            THEN quantity
-                        WHEN transaction_type IN ('CONSUMPTION', 'DISTRIBUTION')
-                            THEN -quantity
-                        WHEN transaction_type = 'ADJUSTMENT'
-                            THEN quantity
-                        ELSE 0
-                    END
-                ), 0) AS approved_balance
-            FROM stock_transactions
-            WHERE centre_id = :centre_id
-              AND batch_id = :batch_id
-              AND status = 'APPROVED'
-            FOR UPDATE
-        ");
-
-        $stmt->execute([
-            'centre_id' => $centreId,
-            'batch_id' => $batchId
-        ]);
-
-        $approvedBalance = (float) $stmt->fetchColumn();
-
-        // Reserve quantities in pending consumption requests to avoid
-        // allowing several requests to exceed the current stock.
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(quantity), 0)
-            FROM stock_transactions
-            WHERE centre_id = :centre_id
-              AND batch_id = :batch_id
-              AND transaction_type = 'CONSUMPTION'
-              AND status = 'PENDING'
-        ");
-
-        $stmt->execute([
-            'centre_id' => $centreId,
-            'batch_id' => $batchId
-        ]);
-
-        $pendingConsumption = (float) $stmt->fetchColumn();
-        $availableForRequest = $approvedBalance - $pendingConsumption;
-
-        if ($quantity > $availableForRequest) {
-            $pdo->rollBack();
-
-            throw new Exception(
-                'Insufficient stock. Available for a new request: ' .
-                number_format(max(0, $availableForRequest), 3) .
-                ' ' . $batch['unit']
-            );
-        }
-
-        // Store the request as pending. It does not reduce approved stock yet.
-        $clientTransactionId = sprintf(
-            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            random_int(0, 65535),
-            random_int(0, 65535),
-            random_int(0, 65535),
-            random_int(0, 16383) | 0x8000,
-            random_int(0, 32767) | 0x4000,
-            random_int(0, 65535),
-            random_int(0, 65535),
-            random_int(0, 65535)
-        );
-
-        $stmt = $pdo->prepare("
-            INSERT INTO stock_transactions (
-                client_transaction_id,
-                centre_id,
-                item_id,
-                batch_id,
-                created_by,
-                transaction_type,
-                quantity,
-                transaction_date,
-                notes,
-                status
-            ) VALUES (
-                :client_id,
-                :centre_id,
-                :item_id,
-                :batch_id,
-                :created_by,
-                'CONSUMPTION',
-                :quantity,
-                :transaction_date,
-                :notes,
-                'PENDING'
-            )
-        ");
-
-        $stmt->execute([
-            'client_id' => $clientTransactionId,
-            'centre_id' => $centreId,
-            'item_id' => $batch['item_id'],
-            'batch_id' => $batchId,
-            'created_by' => $userId,
-            'quantity' => $quantity,
-            'transaction_date' => $transactionDate . ' ' . date('H:i:s'),
-            'notes' => $notes !== '' ? $notes : null
-        ]);
-
-        $transactionId = (int) $pdo->lastInsertId();
-
-        // Create an audit record.
-        $stmt = $pdo->prepare("
-            INSERT INTO audit_logs (
-                user_id,
-                action,
-                table_name,
-                record_id,
-                old_values,
-                new_values
-            ) VALUES (
-                :user_id,
-                'CREATE_CONSUMPTION',
-                'stock_transactions',
-                :record_id,
-                NULL,
-                :new_values
-            )
-        ");
-
-        $stmt->execute([
-            'user_id' => $userId,
-            'record_id' => (string) $transactionId,
-            'new_values' => json_encode([
-                'centre_id' => $centreId,
-                'item_id' => (int) $batch['item_id'],
-                'batch_id' => $batchId,
-                'quantity' => $quantity,
-                'status' => 'PENDING'
-            ], JSON_UNESCAPED_UNICODE)
-        ]);
-
-        $pdo->commit();
-
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        header('Location: daily-consumption.php?success=1');
-        exit;
-    }
-
-} catch (Throwable $e) {
-    if (isset($pdo) && $pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $message = $e->getMessage();
-        $messageType = 'danger';
-    } else {
-        error_log('Daily consumption page error: ' . $e->getMessage());
-        $centres = [];
-        $message = 'Unable to load the page data. Check your database settings.';
-        $messageType = 'danger';
     }
 }
 
-if (isset($_GET['success'])) {
-    $message = 'Consumption submitted successfully. It is waiting for supervisor verification.';
-    $messageType = 'success';
-}
+/* ---------- Page data ---------- */
 
-// Load food batches and their balances for each accessible centre.
-$batches = [];
+$items = [];
+$todayEntries = [];
+$loadError = false;
 
 try {
-    if (!empty($centres)) {
-        $centreIds = array_map(
-            fn($centre) => (int) $centre['centre_id'],
-            $centres
-        );
+    $items = getBalances($pdo, $centreId);
 
-        $placeholders = implode(',', array_fill(0, count($centreIds), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT t.transaction_id, t.quantity, t.status, t.remarks,
+                t.transaction_date, f.item_name_en, f.item_name_gu
+         FROM stock_transactions t
+         LEFT JOIN food_items f ON f.item_id = t.item_id
+         WHERE UPPER(t.transaction_type) = 'CONSUMPTION'
+           AND t.centre_id = :centre
+           AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+         ORDER BY t.created_at DESC
+         LIMIT 20"
+    );
+    $stmt->execute([':centre' => $centreId]);
+    $todayEntries = $stmt->fetchAll();
 
-        $sql = "
-            SELECT
-                b.batch_id,
-                b.centre_id,
-                b.item_id,
-                b.batch_number,
-                b.expiry_date,
-                c.centre_name,
-                f.item_name_en,
-                f.item_name_gu,
-                f.unit,
-                COALESCE(SUM(
-                    CASE
-                        WHEN t.status = 'APPROVED'
-                         AND t.transaction_type = 'RECEIPT'
-                            THEN t.quantity
-                        WHEN t.status = 'APPROVED'
-                         AND t.transaction_type IN ('CONSUMPTION', 'DISTRIBUTION')
-                            THEN -t.quantity
-                        WHEN t.status = 'APPROVED'
-                         AND t.transaction_type = 'ADJUSTMENT'
-                            THEN t.quantity
-                        ELSE 0
-                    END
-                ), 0) AS balance,
-                COALESCE(SUM(
-                    CASE
-                        WHEN t.status = 'PENDING'
-                         AND t.transaction_type = 'CONSUMPTION'
-                            THEN t.quantity
-                        ELSE 0
-                    END
-                ), 0) AS pending_consumption
-            FROM stock_batches b
-            JOIN anganwadi_centres c ON c.centre_id = b.centre_id
-            JOIN food_items f ON f.item_id = b.item_id
-            LEFT JOIN stock_transactions t ON t.batch_id = b.batch_id
-            WHERE b.centre_id IN ($placeholders)
-              AND f.is_active = 1
-            GROUP BY
-                b.batch_id,
-                b.centre_id,
-                b.item_id,
-                b.batch_number,
-                b.expiry_date,
-                c.centre_name,
-                f.item_name_en,
-                f.item_name_gu,
-                f.unit
-            ORDER BY c.centre_name, f.item_name_en, b.expiry_date
-        ";
+} catch (PDOException $ex) {
+    error_log('Daily consumption load error: ' . $ex->getMessage());
 
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($centreIds);
-        $batches = $stmt->fetchAll();
-    }
-} catch (PDOException $e) {
-    error_log('Daily consumption batch query error: ' . $e->getMessage());
-    $message = 'Unable to load stock batches. Please check the database structure.';
-    $messageType = 'danger';
+    echo '<div class="alert alert-warning">';
+    echo '<strong>Database debug:</strong> ';
+    echo htmlspecialchars(
+        $ex->getMessage(),
+        ENT_QUOTES,
+        'UTF-8'
+    );
+    echo '</div>';
+
+    $loadError = true;
 }
-?>
 
+?>
 <!DOCTYPE html>
-<html lang="<?= consumptionEscape($language) ?>">
+<html lang="<?= e($language) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= t('daily_consumption', 'Daily Consumption') ?> | <?= e(APP_NAME) ?></title>
 
-    <title>
-        <?= consumptionEscape(consumptionText('Daily Consumption', 'દૈનિક વપરાશ')) ?>
-        | AnnaSetu
-    </title>
-
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
-    <link
-        rel="stylesheet"
-        href="<?= APP_URL ?>/assets/css/dashboard.css?v=2"
-    >
-
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            background: #f3f6fb;
-            color: #153f35;
-            font-family: Arial, Helvetica, sans-serif;
-        }
-
-        .consumption-layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .consumption-sidebar {
-            width: 280px;
-            flex-shrink: 0;
-            background: #103d32;
-            color: #fff;
-            padding: 24px 19px;
-        }
-
-        .brand {
-            text-align: center;
-            padding: 0 0 24px;
-            border-bottom: 1px solid rgba(255,255,255,.17);
-        }
-
-        .brand h2 {
-            font-size: 30px;
-            margin: 0;
-            font-weight: 700;
-        }
-
-        .brand p {
-            margin: 4px 0 0;
-            letter-spacing: 2px;
-        }
-
-        .sidebar-user {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 24px 7px;
-            overflow-wrap: anywhere;
-        }
-
-        .avatar {
-            width: 48px;
-            height: 48px;
-            flex-shrink: 0;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #d7f4e2;
-            color: #103d32;
-            font-size: 20px;
-            font-weight: bold;
-        }
-
-        .sidebar-user small {
-            display: block;
-            margin-top: 4px;
-            color: #c8e4dc;
-        }
-
-        .sidebar-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .sidebar-menu a,
-        .logout-link {
-            display: block;
-            padding: 13px 15px;
-            border-radius: 9px;
-            color: #fff;
-            text-decoration: none;
-        }
-
-        .sidebar-menu a:hover,
-        .sidebar-menu a.active {
-            background: #256e58;
-        }
-
-        .logout-link {
-            margin-top: 20px;
-            background: rgba(255,255,255,.09);
-        }
-
-        .consumption-main {
-            flex: 1;
-            min-width: 0;
-            padding: 35px;
-        }
-
-        .page-heading {
-            margin-bottom: 24px;
-        }
-
-        .page-heading h1 {
-            font-size: clamp(26px, 3vw, 36px);
-            font-weight: 700;
-        }
-
-        .page-heading p {
-            color: #64748b;
-        }
-
-        .form-card {
-            max-width: 1000px;
-            background: #fff;
-            padding: 32px;
-            border-radius: 18px;
-            box-shadow: 0 5px 25px rgba(22, 50, 75, .06);
-        }
-
-        .form-label {
-            font-weight: 700;
-            margin-bottom: 9px;
-        }
-
-        .form-control,
-        .form-select {
-            min-height: 52px;
-            border-radius: 11px;
-        }
-
-        textarea.form-control {
-            min-height: 100px;
-        }
-
-        .stock-info {
-            background: #eaf7f0;
-            border: 1px solid #d1e9db;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 20px;
-            color: #155c45;
-        }
-
-        .submit-button {
-            background: #176b52;
-            border: 0;
-            border-radius: 10px;
-            color: #fff;
-            font-weight: 700;
-            padding: 14px 24px;
-        }
-
-        .submit-button:hover {
-            background: #10543f;
-            color: #fff;
-        }
-
-        .back-link {
-            display: inline-block;
-            color: #176b52;
-            text-decoration: none;
-            font-weight: 700;
-            margin-bottom: 24px;
-        }
-
-        @media (max-width: 900px) {
-            .consumption-layout {
-                display: block;
-            }
-
-            .consumption-sidebar {
-                width: 100%;
-                padding: 16px;
-            }
-
-            .brand {
-                text-align: left;
-            }
-
-            .sidebar-menu {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .consumption-main {
-                padding: 22px 16px;
-            }
-
-            .form-card {
-                padding: 22px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .sidebar-menu {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/dashboard.css?v=2">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/daily-consumption.css?v=1">
 </head>
-
 <body>
-<?php require_once __DIR__ . '/../includes/page-header.php'; ?>
-<div class="consumption-layout">
+<div class="dashboard-layout">
 
     <!-- Sidebar -->
-    <aside class="consumption-sidebar">
-
-        <div class="brand">
-            <h2>અન્નસેતુ</h2>
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <h3>અન્નસેતુ</h3>
             <p>AnnaSetu</p>
         </div>
 
         <div class="sidebar-user">
-            <div class="avatar">
-                <?= consumptionEscape(strtoupper(substr($fullName, 0, 1))) ?>
-            </div>
-
+            <div class="user-avatar"><?= e(strtoupper(substr($fullName, 0, 1))) ?></div>
             <div>
-                <strong><?= consumptionEscape($fullName) ?></strong>
-                <small><?= consumptionEscape(ucfirst($role)) ?></small>
+                <strong><?= e($fullName) ?></strong>
+                <small><?= t('role_' . $role, ucfirst($role)) ?></small>
             </div>
         </div>
 
         <nav class="sidebar-menu">
-            <a href="<?= APP_URL ?>/<?= consumptionEscape($role) ?>/dashboard.php">
-                <?= consumptionText('Dashboard', 'ડેશબોર્ડ') ?>
-            </a>
-
-            <?php if ($role === 'worker'): ?>
-                <a href="<?= APP_URL ?>/worker/receive-stock.php">
-                    <?= consumptionText('Receive Stock', 'સ્ટોક મેળવો') ?>
+            <?php foreach ($menuItems as [$key, $label, $file]): ?>
+                <a href="<?= e(APP_URL . '/' . $role . '/' . $file) ?>"
+                   class="menu-link <?= $file === 'daily-consumption.php' ? 'active' : '' ?>">
+                    <span><?= t($key, $label) ?></span>
                 </a>
-            <?php endif; ?>
-
-            <a class="active"
-               href="<?= APP_URL ?>/<?= consumptionEscape($role) ?>/daily-consumption.php">
-                <?= consumptionText('Daily Consumption', 'દૈનિક વપરાશ') ?>
-            </a>
-
-            <a href="<?= APP_URL ?>/<?= consumptionEscape($role) ?>/distribution.php">
-                <?= consumptionText('Beneficiary Distribution', 'લાભાર્થીઓને વિતરણ') ?>
-            </a>
-
-            <a href="<?= APP_URL ?>/<?= consumptionEscape($role) ?>/current-stock.php">
-                <?= consumptionText('Current Stock', 'હાલનો સ્ટોક') ?>
-            </a>
-
-            <?php if ($role === 'worker'): ?>
-                <a href="<?= APP_URL ?>/worker/stock-history.php">
-                    <?= consumptionText('Stock History', 'સ્ટોકનો ઇતિહાસ') ?>
-                </a>
-                <a href="<?= APP_URL ?>/worker/reports.php">
-                    <?= consumptionText('Reports', 'અહેવાલો') ?>
-                </a>
-                <a href="<?= APP_URL ?>/worker/notifications.php">
-                    <?= consumptionText('Notifications', 'સૂચનાઓ') ?>
-                </a>
-            <?php endif; ?>
-
-            <a href="<?= APP_URL ?>/<?= consumptionEscape($role) ?>/profile.php">
-                <?= consumptionText('My Profile', 'મારી પ્રોફાઇલ') ?>
-            </a>
+            <?php endforeach; ?>
         </nav>
 
-        <a class="logout-link" href="<?= APP_URL ?>/logout.php">
-            <?= consumptionText('Logout', 'લોગઆઉટ') ?>
-        </a>
-
+        <a class="logout-link" href="<?= APP_URL ?>/logout.php"><?= t('logout', 'Logout') ?></a>
     </aside>
 
-    <!-- Main Content -->
-    <main class="consumption-main">
+    <!-- Main -->
+    <main class="dashboard-main">
+        <div class="page-content">
 
-        <a class="back-link"
-           href="<?= APP_URL ?>/<?= consumptionEscape($role) ?>/dashboard.php">
-            &larr; <?= consumptionText('Back to Dashboard', 'ડેશબોર્ડ પર પાછા જાઓ') ?>
-        </a>
+            <header class="page-header">
+                <div>
+                    <h2><?= t('daily_consumption', 'Daily Consumption') ?></h2>
+                    <p><?= t('daily_consumption_desc', 'Record the food items used at the centre today.') ?></p>
+                </div>
 
-        <div class="page-heading">
-            <h1>
-                <?= consumptionText('Daily Consumption', 'દૈનિક વપરાશ') ?>
-                / <?= consumptionText('દૈનિક વપરાશ', 'દૈનિક વપરાશ') ?>
-            </h1>
+                
+<form action="<?= APP_URL ?>/change-language.php" method="POST" class="language-form">
+    <input
+        type="hidden"
+        name="return_to"
+        value="<?= e($_SERVER['REQUEST_URI']) ?>"
+    >
 
-            <p>
-                <?= consumptionText(
-                    'Record the food consumed at your Anganwadi centre.',
-                    'તમારા આંગણવાડી કેન્દ્રમાં વપરાયેલ ખોરાકની નોંધ કરો.'
-                ) ?>
-            </p>
-        </div>
+    <label for="language">
+        <?= t('language', 'Language') ?>
+    </label>
 
-        <?php if ($message !== ''): ?>
-            <div class="alert alert-<?= consumptionEscape($messageType) ?>">
-                <?= consumptionEscape($message) ?>
-            </div>
-        <?php endif; ?>
+    <select name="language" id="language" onchange="this.form.submit()">
+        <option value="gu" <?= $language === 'gu' ? 'selected' : '' ?>>
+            ગુજરાતી
+        </option>
+        <option value="en" <?= $language === 'en' ? 'selected' : '' ?>>
+            English
+        </option>
+    </select>
+</form>
 
-        <?php if (empty($centres)): ?>
+            </header>
 
-            <div class="alert alert-warning">
-                <?= consumptionText(
-                    'No centre is assigned to your account. Ask your administrator to assign a centre.',
-                    'તમારા ખાતા સાથે કોઈ કેન્દ્ર જોડાયેલું નથી. સંચાલકને કેન્દ્ર સોંપવા કહો.'
-                ) ?>
-            </div>
+            <?php if ($flash): ?>
+                <div class="alert alert-<?= $flash['type'] === 'success' ? 'success' : 'danger' ?>">
+                    <?= e($flash['text']) ?>
+                </div>
+            <?php endif; ?>
 
-        <?php else: ?>
+            <?php if ($errors): ?>
+                <div class="alert alert-danger">
+                    <ul class="mb-0 ps-3">
+                        <?php foreach ($errors as $err): ?>
+                            <li><?= $err /* already escaped by t() */ ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
 
-            <div class="form-card">
+            <?php if ($loadError): ?>
+                <div class="alert alert-danger"><?= t('database_error', 'Database error. Please try again.') ?></div>
+            <?php else: ?>
 
-                <form method="POST" action="daily-consumption.php">
+            <!-- Entry form -->
+            <section class="form-card">
+                <form method="POST" action="daily-consumption.php" id="consumptionForm" novalidate>
+                    <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
 
-                    <input
-                        type="hidden"
-                        name="csrf_token"
-                        value="<?= consumptionEscape($_SESSION['csrf_token']) ?>"
-                    >
-
-                    <div class="row g-4">
-
-                        <div class="col-md-6">
-                            <label for="centre_id" class="form-label">
-                                <?= consumptionText('Anganwadi Centre', 'આંગણવાડી કેન્દ્ર') ?> *
-                            </label>
-
-                            <select name="centre_id" id="centre_id"
-                                    class="form-select" required>
-                                <option value="">
-                                    <?= consumptionText('Select centre', 'કેન્દ્ર પસંદ કરો') ?>
-                                </option>
-
-                                <?php foreach ($centres as $centre): ?>
-                                    <option value="<?= (int) $centre['centre_id'] ?>">
-                                        <?= consumptionEscape($centre['centre_name']) ?>
-                                        (<?= consumptionEscape($centre['centre_code']) ?>)
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="item_id"><?= t('food_item', 'Food Item') ?></label>
+                            <select name="item_id" id="item_id" required>
+                                <option value=""><?= t('select_item', '-- Select item --') ?></option>
+                                <?php foreach ($items as $item): ?>
+                                    <option value="<?= (int) $item['item_id'] ?>"
+                                            data-balance="<?= e($item['balance']) ?>"
+                                            <?= (int) $old['item_id'] === (int) $item['item_id'] ? 'selected' : '' ?>>
+                                        <?= e(itemName($item)) ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <div class="balance-hint" id="balanceHint" aria-live="polite"></div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label for="batch_id" class="form-label">
-                                <?= consumptionText('Food Batch', 'ખાદ્ય બેચ') ?> *
-                            </label>
-
-                            <select name="batch_id" id="batch_id"
-                                    class="form-select" required>
-                                <option value="">
-                                    <?= consumptionText('Select centre first', 'પહેલા કેન્દ્ર પસંદ કરો') ?>
-                                </option>
-
-                                <?php foreach ($batches as $batch): ?>
-                                    <?php
-                                    $itemName = $language === 'gu'
-                                        ? $batch['item_name_gu']
-                                        : $batch['item_name_en'];
-
-                                    $available = (float) $batch['balance']
-                                        - (float) $batch['pending_consumption'];
-                                    ?>
-                                    <option
-                                        value="<?= (int) $batch['batch_id'] ?>"
-                                        data-centre="<?= (int) $batch['centre_id'] ?>"
-                                        data-available="<?= consumptionEscape(max(0, $available)) ?>"
-                                        data-unit="<?= consumptionEscape($batch['unit']) ?>"
-                                        data-item="<?= consumptionEscape($itemName) ?>"
-                                    >
-                                        <?= consumptionEscape($itemName) ?>
-                                        - <?= consumptionEscape($batch['batch_number']) ?>
-                                        (<?= consumptionEscape($batch['centre_name']) ?>)
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="form-group">
+                            <label for="quantity"><?= t('quantity', 'Quantity') ?></label>
+                            <input type="number" name="quantity" id="quantity"
+                                   step="0.01" min="0.01" required
+                                   value="<?= e($old['quantity']) ?>">
                         </div>
 
-                        <div class="col-md-6">
-                            <label for="quantity" class="form-label">
-                                <?= consumptionText('Consumed Quantity', 'વપરાયેલ જથ્થો') ?> *
-                            </label>
-
-                            <input
-                                type="number"
-                                name="quantity"
-                                id="quantity"
-                                class="form-control"
-                                min="0.001"
-                                step="0.001"
-                                placeholder="<?= consumptionText('Enter quantity', 'જથ્થો દાખલ કરો') ?>"
-                                required
-                            >
+                        <div class="form-group">
+                            <label for="consumption_date"><?= t('date', 'Date') ?></label>
+                            <input type="date" name="consumption_date" id="consumption_date"
+                                   max="<?= date('Y-m-d') ?>" required
+                                   value="<?= e($old['date']) ?>">
                         </div>
 
-                        <div class="col-md-6">
-                            <label for="transaction_date" class="form-label">
-                                <?= consumptionText('Consumption Date', 'વપરાશની તારીખ') ?> *
-                            </label>
-
-                            <input
-                                type="date"
-                                name="transaction_date"
-                                id="transaction_date"
-                                class="form-control"
-                                value="<?= date('Y-m-d') ?>"
-                                max="<?= date('Y-m-d') ?>"
-                                required
-                            >
+                        <div class="form-group">
+                            <label for="remarks"><?= t('remarks', 'Remarks (optional)') ?></label>
+                            <textarea name="remarks" id="remarks" maxlength="255"><?= e($old['remarks']) ?></textarea>
                         </div>
-
-                        <div class="col-12">
-                            <label for="notes" class="form-label">
-                                <?= consumptionText('Notes (optional)', 'નોંધ (વૈકલ્પિક)') ?>
-                            </label>
-
-                            <textarea
-                                name="notes"
-                                id="notes"
-                                class="form-control"
-                                maxlength="2000"
-                                placeholder="<?= consumptionText(
-                                    'Enter a short note, if required',
-                                    'જરૂર હોય તો ટૂંકી નોંધ લખો'
-                                ) ?>"
-                            ></textarea>
-                        </div>
-
                     </div>
 
-                    <div class="stock-info" id="stock-info">
-                        <strong>
-                            <?= consumptionText('Available stock:', 'ઉપલબ્ધ સ્ટોક:') ?>
-                        </strong>
-                        <span id="available-stock">
-                            <?= consumptionText('Select a batch to view stock', 'સ્ટોક જોવા માટે બેચ પસંદ કરો') ?>
-                        </span>
-                        <div id="stock-warning" class="small mt-2"></div>
+                    <div class="form-actions">
+                        <button type="submit"><?= t('save', 'Save') ?></button>
+                        <a href="dashboard.php" class="btn btn-secondary"><?= t('cancel', 'Cancel') ?></a>
                     </div>
-
-                    <div class="alert alert-info mt-4">
-                        <strong><?= consumptionText('Note:', 'નોંધ:') ?></strong>
-                        <?= consumptionText(
-                            'Your consumption entry will remain pending until the supervisor verifies it.',
-                            'સુપરવાઇઝર ચકાસણી કરે ત્યાં સુધી તમારી નોંધ બાકી રહેશે.'
-                        ) ?>
-                    </div>
-
-                    <div class="d-flex flex-wrap gap-3 mt-4">
-                        <button type="submit" class="btn submit-button" id="submit-button">
-                            <?= consumptionText('Submit Consumption', 'વપરાશ નોંધ સબમિટ કરો') ?>
-                        </button>
-
-                        <a class="btn btn-light py-3 px-4"
-                           href="<?= APP_URL ?>/<?= consumptionEscape($role) ?>/dashboard.php">
-                            <?= consumptionText('Cancel', 'રદ કરો') ?>
-                        </a>
-                    </div>
-
                 </form>
+            </section>
 
-            </div>
+            <!-- Recent entries -->
+            <section class="dashboard-section">
+                <div class="section-heading">
+                    <h3><?= t('recent_consumption', 'Recent Consumption') ?></h3>
+                    <span><?= t('last_7_days', 'Last 7 days') ?></span>
+                </div>
 
-        <?php endif; ?>
+                <?php if (!$todayEntries): ?>
+                    <div class="empty-state"><?= t('no_transactions', 'No transactions yet.') ?></div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th><?= t('date', 'Date') ?></th>
+                                    <th><?= t('food_item', 'Food Item') ?></th>
+                                    <th><?= t('quantity', 'Quantity') ?></th>
+                                    <th><?= t('status', 'Status') ?></th>
+                                    <th><?= t('remarks', 'Remarks') ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($todayEntries as $row):
+                                    $status = strtolower($row['status'] ?? ''); ?>
+                                    <tr>
+                                        <td><?= e(date('d-m-Y', strtotime($row['transaction_date']))) ?></td>
+                                        <td><?= e(itemName($row)) ?></td>
+                                        <td><?= e($row['quantity']) ?></td>
+                                        <td>
+                                            <span class="status-badge status-<?= e($status) ?>">
+                                                <?= t('status_' . $status, ucfirst($status)) ?>
+                                            </span>
+                                        </td>
+                                        <td><?= e($row['remarks'] ?? '-') ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </section>
 
+            <?php endif; ?>
+        </div>
     </main>
 </div>
 
 <script>
-const centreSelect = document.getElementById('centre_id');
-const batchSelect = document.getElementById('batch_id');
-const quantityInput = document.getElementById('quantity');
-const availableStock = document.getElementById('available-stock');
-const stockWarning = document.getElementById('stock-warning');
-const submitButton = document.getElementById('submit-button');
 
-function updateBatches() {
-    if (!centreSelect || !batchSelect) {
+(function () {
+    var select = document.getElementById('item_id');
+    var qty = document.getElementById('quantity');
+    var hint = document.getElementById('balanceHint');
+    var form = document.getElementById('consumptionForm');
+
+    // Stop if the form is not present on the page
+    if (!select || !qty || !hint || !form) {
         return;
     }
 
-    const selectedCentre = centreSelect.value;
-    let visibleCount = 0;
+    var label = <?= json_encode(
+        translate('available_stock') !== 'available_stock'
+            ? translate('available_stock')
+            : 'Available stock',
+        JSON_UNESCAPED_UNICODE
+    ) ?>;
 
-    for (let i = 0; i < batchSelect.options.length; i++) {
-        const option = batchSelect.options[i];
+    var tooMuch = <?= json_encode(
+        translate('err_insufficient') !== 'err_insufficient'
+            ? translate('err_insufficient')
+            : 'Quantity is more than the available stock.',
+        JSON_UNESCAPED_UNICODE
+    ) ?>;
 
-        if (!option.value) {
-            option.hidden = false;
-            continue;
+    function balance() {
+        var opt = select.options[select.selectedIndex];
+        return opt && opt.value
+            ? parseFloat(opt.dataset.balance)
+            : null;
+    }
+
+    function update() {
+        var b = balance();
+
+        hint.textContent =
+            b === null ? '' : label + ': ' + b;
+
+        hint.classList.toggle(
+            'is-low',
+            b !== null && b <= 0
+        );
+
+        if (
+            b !== null &&
+            qty.value &&
+            parseFloat(qty.value) > b
+        ) {
+            qty.setCustomValidity(tooMuch);
+        } else {
+            qty.setCustomValidity('');
         }
+    }
 
-        const matches = option.dataset.centre === selectedCentre;
-        option.hidden = !matches;
+    select.addEventListener('change', update);
+    qty.addEventListener('input', update);
 
-        if (matches) {
-            visibleCount++;
+    form.addEventListener('submit', function (event) {
+        update();
+
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            form.reportValidity();
         }
-    }
+    });
 
-    batchSelect.value = '';
-    updateAvailableStock();
+    update();
+})();
 
-    if (selectedCentre && visibleCount === 0) {
-        stockWarning.textContent =
-            'No batch is available for this centre. Add a stock receipt first.';
-    }
-}
-
-function updateAvailableStock() {
-    if (!batchSelect || !availableStock) {
-        return;
-    }
-
-    const option = batchSelect.options[batchSelect.selectedIndex];
-
-    if (!option || !option.value) {
-        availableStock.textContent = 'Select a batch to view stock';
-        stockWarning.textContent = '';
-        return;
-    }
-
-    const quantity = parseFloat(option.dataset.available || '0');
-    const unit = option.dataset.unit || '';
-    const item = option.dataset.item || '';
-
-    availableStock.textContent =
-        item + ': ' + quantity.toFixed(3) + ' ' + unit;
-
-    checkQuantity();
-}
-
-function checkQuantity() {
-    if (!batchSelect || !quantityInput || !submitButton) {
-        return;
-    }
-
-    const option = batchSelect.options[batchSelect.selectedIndex];
-
-    if (!option || !option.value) {
-        submitButton.disabled = true;
-        return;
-    }
-
-    const available = parseFloat(option.dataset.available || '0');
-    const quantity = parseFloat(quantityInput.value || '0');
-
-    if (available <= 0) {
-        stockWarning.textContent = 'No available stock in this batch.';
-        submitButton.disabled = true;
-    } else if (quantity > available) {
-        stockWarning.textContent = 'Quantity exceeds available stock.';
-        submitButton.disabled = true;
-    } else {
-        stockWarning.textContent = '';
-        submitButton.disabled = false;
-    }
-}
-
-if (centreSelect) {
-    centreSelect.addEventListener('change', updateBatches);
-}
-
-if (batchSelect) {
-    batchSelect.addEventListener('change', updateAvailableStock);
-}
-
-if (quantityInput) {
-    quantityInput.addEventListener('input', checkQuantity);
-}
-
-updateBatches();
 </script>
-
 </body>
 </html>

@@ -1,4 +1,3 @@
-
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 
@@ -295,115 +294,13 @@ function rsText(string $english, string $gujarati): string
         href="<?= APP_URL ?>/assets/css/dashboard.css?v=3"
     >
 
-    <style>
-        .receive-content {
-            max-width: 1100px;
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        .receive-heading {
-            margin-bottom: 26px;
-        }
-
-        .receive-heading h1 {
-            color: #123e34;
-            font-size: 2.2rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-
-        .receive-heading p {
-            color: #64748b;
-            font-size: 1.05rem;
-        }
-
-        .receive-card {
-            background: #fff;
-            border: 1px solid #edf1f6;
-            border-radius: 18px;
-            padding: 32px;
-            box-shadow: 0 8px 28px rgba(22, 50, 70, 0.06);
-        }
-
-        .receive-card label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: 600;
-            color: #123e34;
-        }
-
-        .receive-card .form-control,
-        .receive-card .form-select {
-            min-height: 52px;
-            border-radius: 11px;
-            border-color: #d9e0e8;
-            font-size: 1rem;
-        }
-
-        .receive-card .form-control:focus,
-        .receive-card .form-select:focus {
-            border-color: #218568;
-            box-shadow: 0 0 0 0.2rem rgba(33, 133, 104, 0.12);
-        }
-
-        .back-dashboard {
-            display: inline-block;
-            color: #16765e;
-            text-decoration: none;
-            font-weight: 600;
-            margin-bottom: 24px;
-        }
-
-        .back-dashboard:hover {
-            text-decoration: underline;
-        }
-
-        .receive-note {
-            border-radius: 10px;
-            padding: 18px 20px;
-            margin-top: 24px;
-            background: #d2f5fb;
-            border: 1px solid #94e9f7;
-            color: #07556a;
-        }
-
-        .submit-button {
-            background: #176f56;
-            color: #fff;
-            border: 0;
-            border-radius: 10px;
-            padding: 14px 22px;
-            font-weight: 700;
-        }
-
-        .submit-button:hover {
-            background: #105640;
-            color: #fff;
-        }
-
-        .form-actions {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 28px;
-        }
-
-        @media (max-width: 768px) {
-            .receive-card {
-                padding: 20px;
-            }
-
-            .receive-heading h1 {
-                font-size: 1.7rem;
-            }
-        }
-    </style>
+    <link
+        rel="stylesheet"
+        href="<?= APP_URL ?>/assets/css/receive-stock.css?v=2"
+    >
 </head>
 
 <body>
-   <?php require_once __DIR__ . '/../includes/page-header.php'; ?>
 
 <div class="dashboard-layout">
 
@@ -475,6 +372,8 @@ function rsText(string $english, string $gujarati): string
 
     <!-- Main Content -->
     <main class="dashboard-main">
+
+        <?php require_once __DIR__ . '/../includes/page-header.php'; ?>
 
         <div class="receive-content">
 

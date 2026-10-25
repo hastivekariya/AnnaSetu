@@ -1,0 +1,44 @@
+/* daily-consumption.css - extras on top of dashboard.css */
+
+.balance-hint {
+  margin-top: 8px;
+  min-height: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #246b56;
+}
+
+.balance-hint.is-low {
+  color: #a52828;
+}
+
+.form-card input:invalid:not(:placeholder-shown):not(:focus) {
+  border-color: #d9534f;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #edf1f5;
+  color: #445166;
+}
+
+.status-pending {
+  background: #fff8e5;
+  color: #805b00;
+}
+.status-approved {
+  background: #e8f7ee;
+  color: #17633a;
+}
+.status-rejected {
+  background: #fff0f0;
+  color: #a52828;
+}
+
+.form-grid .form-group:last-child {
+  grid-column: 1 / -1;
+}

@@ -21,6 +21,12 @@ $fullName = $_SESSION['full_name'] ?? 'User';
         method="POST"
         class="language-form"
     >
+        <input
+            type="hidden"
+            name="return_to"
+            value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+        >
+
         <label for="language">
             <?= htmlspecialchars(translate('language'), ENT_QUOTES, 'UTF-8') ?>
         </label>
