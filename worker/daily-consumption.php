@@ -282,10 +282,45 @@ try {
         <div class="page-content">
 
             <header class="page-header">
-                <div>
-                    <h2><?= t('daily_consumption', 'Daily Consumption') ?></h2>
-                    <p><?= t('daily_consumption_desc', 'Record the food items used at the centre today.') ?></p>
-                </div>
+    <div>
+        <h2>
+            <?= $language === 'gu' ? 'સ્વાગત છે, ' : 'Welcome, ' ?>
+            <?= e($fullName) ?>!
+        </h2>
+
+        <p>
+            <?= t(
+                'daily_consumption_desc',
+                'Record the food items used at the centre today.'
+            ) ?>
+        </p>
+    </div>
+
+    <form action="<?= APP_URL ?>/change-language.php"
+          method="POST"
+          class="language-form">
+
+        <input type="hidden"
+               name="return_to"
+               value="<?= e($_SERVER['REQUEST_URI']) ?>">
+
+        <label for="language">
+            <?= t('language', 'Language') ?>
+        </label>
+
+        <select name="language"
+                id="language"
+                onchange="this.form.submit()">
+            <option value="gu" <?= $language === 'gu' ? 'selected' : '' ?>>
+                ગુજરાતી
+            </option>
+
+            <option value="en" <?= $language === 'en' ? 'selected' : '' ?>>
+                English
+            </option>
+        </select>
+    </form>
+</header>
 
                 
 <form action="<?= APP_URL ?>/change-language.php" method="POST" class="language-form">
