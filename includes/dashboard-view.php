@@ -286,6 +286,16 @@ try {
         rel="stylesheet"
         href="<?= APP_URL ?>/assets/css/dashboard.css?v=2"
     >
+
+    <link
+    rel="stylesheet"
+    href="<?= APP_URL ?>/assets/css/dashboard.css?v=3"
+>
+
+<link
+    rel="stylesheet"
+    href="<?= APP_URL ?>/assets/css/receive-stock.css?v=1"
+>
 </head>
 
 <body>

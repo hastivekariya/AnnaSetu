@@ -39,6 +39,50 @@ a {
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 20px;
+  margin-bottom: 24px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.page-header h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  color: #173b2b;
+}
+
+.page-header p {
+  margin: 0;
+  color: #68756d;
+}
+
+.language-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.language-form select {
+  padding: 9px 12px;
+  border: 1px solid #ced8d0;
+  border-radius: 8px;
+  background: white;
+}
+
+@media (max-width: 600px) {
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .sidebar-brand h3 {
   font-size: 27px;
   margin-bottom: 4px;
