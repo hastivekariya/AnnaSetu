@@ -1,0 +1,264 @@
+/* =====================================================
+   expiry-monitoring.css
+   Load AFTER dashboard.css and receive-stock.css
+===================================================== */
+
+.expiry-content {
+  max-width: 1300px;
+}
+
+.expired-banner {
+  margin-bottom: 22px;
+}
+
+/* ---------- Summary cards ---------- */
+
+.expiry-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-bottom: 26px;
+}
+
+.expiry-stats .stat-card p small {
+  color: #8a96a8;
+  font-size: 12px;
+}
+
+.expiry-stats .card-expired {
+  border-left-color: #c93a3a;
+}
+.expiry-stats .card-soon {
+  border-left-color: #e8890c;
+}
+.expiry-stats .card-safe {
+  border-left-color: #287d62;
+}
+
+.expiry-stats .card-expired h3 {
+  color: #a52828;
+}
+.expiry-stats .card-soon h3 {
+  color: #b86a00;
+}
+.expiry-stats .card-safe h3 {
+  color: #17633a;
+}
+
+/* ---------- Filters ---------- */
+
+.expiry-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.filter-field {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
+.filter-field.filter-wide {
+  flex: 2 1 240px;
+}
+
+.filter-field label {
+  display: block;
+  margin-bottom: 6px;
+  color: #123e34;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.expiry-filters .form-control,
+.expiry-filters .form-select {
+  min-height: 46px;
+  border-radius: 10px;
+  border-color: #d9e0e8;
+}
+
+.expiry-filters .form-control:focus,
+.expiry-filters .form-select:focus {
+  border-color: #218568;
+  box-shadow: 0 0 0 0.2rem rgba(33, 133, 104, 0.12);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-actions .btn {
+  min-height: 46px;
+}
+
+.expiry-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.expiry-tools .btn {
+  border: 1px solid #d5e5dd;
+  background: #ffffff;
+  color: #245643;
+  font-weight: 600;
+}
+
+.expiry-tools .btn:hover {
+  background: #e9f5ef;
+}
+
+/* ---------- Table + urgency ---------- */
+
+.expiry-table {
+  min-width: 900px;
+}
+
+.expiry-table .nowrap {
+  white-space: nowrap;
+}
+
+.expiry-table .item-alt {
+  margin-left: 4px;
+  color: #718096;
+  font-size: 13px;
+}
+
+.expiry-table .days-cell {
+  font-weight: 700;
+}
+
+.expiry-table tr.row-expired td:first-child {
+  border-left: 4px solid #c93a3a;
+}
+
+.expiry-table tr.row-soon td:first-child {
+  border-left: 4px solid #e8890c;
+}
+
+.expiry-table tr.row-safe td:first-child {
+  border-left: 4px solid #287d62;
+}
+
+.expiry-table tr.row-expired {
+  background: #fff8f8;
+}
+
+.expiry-table tr.row-expired .days-cell {
+  color: #a52828;
+}
+
+.expiry-table tr.row-soon .days-cell {
+  color: #b86a00;
+}
+
+.remove-note {
+  display: block;
+  margin-top: 4px;
+  color: #a52828;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pending-link {
+  display: block;
+  margin-top: 4px;
+  color: #8a1f1f;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.expiry-footnote {
+  margin: 16px 0 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+/* ---------- Badges ---------- */
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-expired {
+  background: #fff0f0;
+  color: #a52828;
+}
+.status-soon {
+  background: #fff3e0;
+  color: #b86a00;
+}
+.status-safe {
+  background: #e8f7ee;
+  color: #17633a;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1000px) {
+  .expiry-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+@media (max-width: 650px) {
+  .expiry-stats {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+
+  .filter-actions {
+    width: 100%;
+  }
+
+  .filter-actions .btn {
+    flex: 1;
+  }
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  .sidebar,
+  .back-dashboard,
+  .no-print {
+    display: none !important;
+  }
+
+  .dashboard-layout {
+    display: block;
+  }
+
+  .dashboard-main {
+    padding: 0;
+  }
+
+  .dashboard-section,
+  .stat-card {
+    box-shadow: none;
+  }
+
+  .table-responsive {
+    overflow: visible;
+  }
+
+  .expiry-table {
+    min-width: 0;
+  }
+
+  .expiry-table tr.row-expired,
+  .expiry-table tr.row-soon {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

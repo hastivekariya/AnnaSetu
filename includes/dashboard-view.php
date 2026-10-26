@@ -38,14 +38,14 @@ $menus = [
     'helper' => [
         ['Dashboard', 'dashboard.php'],
         ['Daily Consumption', 'daily-consumption.php'],
-        ['Beneficiary Distribution', 'distribution.php'],
+        ['Beneficiary Distribution', 'beneficiary-distribution.php'],
         ['Current Stock', 'current-stock.php'],
         ['My Profile', 'profile.php']
     ],
 
     'supervisor' => [
         ['Dashboard', 'dashboard.php'],
-        ['Pending Verification', 'pending-verification.php'],
+        ['Pending Verification', 'verification.php'],
         ['Low Stock Alerts', 'low-stock.php'],
         ['Expiry Monitoring', 'expiry-monitoring.php'],
         ['Workers and Helpers', 'workers.php'],
@@ -555,7 +555,7 @@ try {
                     <?php elseif ($role === 'supervisor'): ?>
 
                         <a
-                            href="<?= APP_URL ?>/supervisor/pending-verification.php"
+                            href="<?= APP_URL ?>/supervisor/verification.php"
                             class="action-card"
                         >
                             <?= dashboardTranslate('pending_verification') ?>

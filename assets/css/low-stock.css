@@ -1,0 +1,280 @@
+/* =====================================================
+   low-stock.css
+   Load AFTER dashboard.css and receive-stock.css
+===================================================== */
+
+.alerts-content {
+  max-width: 1300px;
+}
+
+/* ---------- Summary cards ---------- */
+
+.alert-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  margin-bottom: 26px;
+}
+
+.alert-stats .card-total {
+  border-left-color: #123e34;
+}
+.alert-stats .card-out {
+  border-left-color: #c93a3a;
+}
+.alert-stats .card-low {
+  border-left-color: #e8890c;
+}
+.alert-stats .card-centres {
+  border-left-color: #2f6fb3;
+}
+
+.alert-stats .card-out h3 {
+  color: #a52828;
+}
+.alert-stats .card-low h3 {
+  color: #b86a00;
+}
+
+/* ---------- Filters ---------- */
+
+.alert-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.filter-field {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
+.filter-field.filter-wide {
+  flex: 2 1 260px;
+}
+
+.filter-field label {
+  display: block;
+  margin-bottom: 6px;
+  color: #123e34;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.alert-filters .form-control,
+.alert-filters .form-select {
+  min-height: 46px;
+  border-radius: 10px;
+  border-color: #d9e0e8;
+}
+
+.alert-filters .form-control:focus,
+.alert-filters .form-select:focus {
+  border-color: #218568;
+  box-shadow: 0 0 0 0.2rem rgba(33, 133, 104, 0.12);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-actions .btn {
+  min-height: 46px;
+}
+
+.alert-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.alert-tools .btn {
+  border: 1px solid #d5e5dd;
+  background: #ffffff;
+  color: #245643;
+  font-weight: 600;
+}
+
+.alert-tools .btn:hover {
+  background: #e9f5ef;
+}
+
+/* ---------- Table + urgency ---------- */
+
+.alert-table {
+  min-width: 860px;
+}
+
+.alert-table .nowrap {
+  white-space: nowrap;
+}
+
+.alert-table .item-alt {
+  margin-left: 4px;
+  color: #718096;
+  font-size: 13px;
+}
+
+.alert-table .shortage {
+  font-weight: 700;
+}
+
+.alert-table tr.row-out td:first-child {
+  border-left: 4px solid #c93a3a;
+}
+
+.alert-table tr.row-low td:first-child {
+  border-left: 4px solid #e8890c;
+}
+
+.alert-table tr.row-out {
+  background: #fff8f8;
+}
+
+.alert-table tr.row-out .shortage {
+  color: #a52828;
+}
+
+.alert-table tr.row-low .shortage {
+  color: #b86a00;
+}
+
+.btn-history {
+  min-height: 34px;
+  padding: 5px 14px;
+  border-radius: 8px;
+  background: #edf3f0;
+  color: #245643;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-history:hover {
+  background: #dcebe4;
+  color: #123b32;
+}
+
+.alert-footnote {
+  margin: 16px 0 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+/* ---------- Badges ---------- */
+
+.type-badge,
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-out {
+  background: #fff0f0;
+  color: #a52828;
+}
+.status-low {
+  background: #fff3e0;
+  color: #b86a00;
+}
+
+.type-receipt {
+  background: #e8f7ee;
+  color: #17633a;
+}
+.type-consumption {
+  background: #e8f0fb;
+  color: #1f4f8a;
+}
+.type-distribution {
+  background: #f1eaf8;
+  color: #5d3a88;
+}
+.type-adjustment {
+  background: #edf1f5;
+  color: #445166;
+}
+
+.status-pending {
+  background: #fff8e5;
+  color: #805b00;
+}
+.status-approved {
+  background: #e8f7ee;
+  color: #17633a;
+}
+.status-rejected {
+  background: #fff0f0;
+  color: #a52828;
+}
+
+.history-table {
+  min-width: 560px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1000px) {
+  .alert-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .alert-stats {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+
+  .filter-actions {
+    width: 100%;
+  }
+
+  .filter-actions .btn {
+    flex: 1;
+  }
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  .sidebar,
+  .back-dashboard,
+  .no-print {
+    display: none !important;
+  }
+
+  .dashboard-layout {
+    display: block;
+  }
+
+  .dashboard-main {
+    padding: 0;
+  }
+
+  .dashboard-section,
+  .stat-card {
+    box-shadow: none;
+  }
+
+  .table-responsive {
+    overflow: visible;
+  }
+
+  .alert-table {
+    min-width: 0;
+  }
+
+  .alert-table tr.row-out,
+  .alert-table tr.row-low {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
