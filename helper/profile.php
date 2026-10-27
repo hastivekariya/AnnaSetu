@@ -1,17 +1,17 @@
 
 <?php
 /*
- * supervisor/profile.php
- * supervisor profile page for AnnaSetu.
+ * helper/profile.php
+ * helper profile page for AnnaSetu.
  */
 
 require_once __DIR__ . '/../includes/auth.php';
 
 requireRole(['helper']);
 
-$role = strtolower($_SESSION['role'] ?? 'supervisor');
+$role = strtolower($_SESSION['role'] ?? 'helper');
 $userId = (int)($_SESSION['user_id'] ?? 0);
-$fullName = $_SESSION['full_name'] ?? 'supervisor';
+$fullName = $_SESSION['full_name'] ?? 'helper';
 $language = $_SESSION['language'] ?? 'gu';
 
 $profile = [];
@@ -105,12 +105,9 @@ try {
 /* Supervisor Sidebar Menu */
 $menuItems = [
     ['dashboard.php', 'Dashboard', 'ડેશબોર્ડ'],
-    ['pending-verification.php', 'Pending Verification', 'ચકાસણી બાકી'],
-    ['low-stock.php', 'Low Stock Alerts', 'ઓછા સ્ટોકની ચેતવણી'],
-    ['expiry-monitoring.php', 'Expiry Monitoring', 'મુદતની દેખરેખ'],
-    ['workers.php', 'Workers and Helpers', 'કાર્યકરો અને તેડાગરો'],
-    ['centres.php', 'Anganwadi Centres', 'આંગણવાડી કેન્દ્રો'],
-    ['reports.php', 'Reports and Analytics', 'અહેવાલો અને વિશ્લેષણ'],
+    ['daily-consumption.php', 'Daily Consumption', 'દૈનિક વપરાશ'],
+    ['beneficiary-distribution.php', 'Beneficiary Distribution', 'લાભાર્થીઓને વિતરણ'],
+    ['current-stock.php', 'Current Stock', 'હાલનો સ્ટોક'],
     ['profile.php', 'My Profile', 'મારી પ્રોફાઇલ']
 ];
 

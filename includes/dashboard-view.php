@@ -3,10 +3,66 @@
 require_once __DIR__ . '/init.php';
 require_once __DIR__ . '/auth.php';
 
-$role = strtolower($_SESSION['role'] ?? 'worker');
+$role = strtolower($_SESSION['role'] ?? 'helper');
 $fullName = $_SESSION['full_name'] ?? 'User';
 $language = $_SESSION['language'] ?? 'gu';
 
+
+function consumptionText($key)
+{
+    $language = $_SESSION['language'] ?? 'gu';
+
+    $translations = [
+        'en' => [
+            'food_item' => 'Food Item',
+            'select_food_item' => 'Select food item',
+            'consumption_date' => 'Consumption Date',
+            'quantity_consumed' => 'Quantity Consumed',
+            'beneficiary_type' => 'Beneficiary Type',
+            'select_beneficiary' => 'Select beneficiary type',
+            'child' => 'Child',
+            'pregnant_woman' => 'Pregnant Woman',
+            'lactating_mother' => 'Lactating Mother',
+            'other' => 'Other',
+            'notes_optional' => 'Notes (Optional)',
+            'available_stock' => 'Available Stock',
+            'save_consumption' => 'Save Consumption',
+            'recent_history' => 'Recent Consumption History',
+            'date' => 'Date',
+            'quantity' => 'Quantity',
+            'status' => 'Status',
+            'no_records' => 'No consumption records found.',
+            'record_consumption' => 'Record Consumption',
+            'daily_consumption_desc' => 'Record daily food consumption and monitor remaining stock.'
+        ],
+        'gu' => [
+            'food_item' => 'ખાદ્ય વસ્તુ',
+            'select_food_item' => 'ખાદ્ય વસ્તુ પસંદ કરો',
+            'consumption_date' => 'વપરાશની તારીખ',
+            'quantity_consumed' => 'વપરાયેલ જથ્થો',
+            'beneficiary_type' => 'લાભાર્થીનો પ્રકાર',
+            'select_beneficiary' => 'લાભાર્થીનો પ્રકાર પસંદ કરો',
+            'child' => 'બાળક',
+            'pregnant_woman' => 'ગર્ભવતી મહિલા',
+            'lactating_mother' => 'સ્તનપાન કરાવતી માતા',
+            'other' => 'અન્ય',
+            'notes_optional' => 'નોંધ (વૈકલ્પિક)',
+            'available_stock' => 'ઉપલબ્ધ જથ્થો',
+            'save_consumption' => 'વપરાશ સાચવો',
+            'recent_history' => 'તાજેતરના વપરાશનો ઇતિહાસ',
+            'date' => 'તારીખ',
+            'quantity' => 'જથ્થો',
+            'status' => 'સ્થિતિ',
+            'no_records' => 'વપરાશની કોઈ નોંધ મળી નથી.',
+            'record_consumption' => 'વપરાશની નોંધ કરો',
+            'daily_consumption_desc' => 'દૈનિક ખાદ્ય વપરાશની નોંધ કરો અને બાકી જથ્થો તપાસો.'
+        ]
+    ];
+
+    return $translations[$language][$key]
+        ?? $translations['en'][$key]
+        ?? $key;
+}
 $stats = [
     'food_items' => 0,
     'active_users' => 0,
@@ -34,7 +90,7 @@ $menus = [
         ['Notifications', 'notifications.php'],
         ['My Profile', 'profile.php']
     ],
-
+ 
     'helper' => [
         ['Dashboard', 'dashboard.php'],
         ['Daily Consumption', 'daily-consumption.php'],
@@ -56,7 +112,7 @@ $menus = [
 
     'cdpo' => [
         ['Dashboard', 'dashboard.php'],
-        ['Project Overview', 'project-overview.php'],
+        ['Project Overview', 'projects.php'],
         ['Anganwadi Centres', 'centres.php'],
         ['Stock Overview', 'stock-overview.php'],
         ['Shortage and Expiry Alerts', 'alerts.php'],

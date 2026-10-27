@@ -3,8 +3,6 @@
 $userId   = (int) ($_SESSION['user_id'] ?? 0);
 $centreId = (int) ($_SESSION['centre_id'] ?? 0);
 
-echo "Logged-in User ID: " . $userId;
-echo "<br>Logged-in Centre ID: " . $centreId;
 
 require_once __DIR__ . '/../includes/init.php';
 require_once __DIR__ . '/../includes/auth.php';

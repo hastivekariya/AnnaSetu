@@ -7,12 +7,14 @@ $fullName = $_SESSION['full_name'] ?? 'User';
 <header class="page-header">
     <div>
         <h2>
-            <?= htmlspecialchars(translate('welcome'), ENT_QUOTES, 'UTF-8') ?>,
+            <?= htmlspecialchars(translate('Welcome'), ENT_QUOTES, 'UTF-8') ?>,
             <?= htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8') ?>!
         </h2>
 
         <p>
-            <?= htmlspecialchars(translate('tagline'), ENT_QUOTES, 'UTF-8') ?>
+            <?= htmlspecialchars(translate('Smart Stock Management for Anganwadi Centres
+
+'), ENT_QUOTES, 'UTF-8') ?>
         </p>
     </div>
 

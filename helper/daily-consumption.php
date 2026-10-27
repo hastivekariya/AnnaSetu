@@ -6,6 +6,118 @@ $role = strtolower($_SESSION['role'] ?? 'helper');
 $fullName = $_SESSION['full_name'] ?? 'User';
 $language = $_SESSION['language'] ?? 'gu';
 
+
+/* Page translations: keep this page bilingual even if a key is missing
+   from the application's main translation dictionary. */
+function consumptionText($key)
+{
+    $language = $_SESSION['language'] ?? 'gu';
+
+    $translations = [
+        'en' => [
+            'daily_consumption' => 'Daily Consumption',
+            'daily_consumption_desc' => 'Record daily food consumption and monitor remaining stock.',
+            'record_consumption' => 'Record Consumption',
+            'food_item' => 'Food Item',
+            'select_food_item' => 'Select food item',
+            'consumption_date' => 'Consumption Date',
+            'quantity_consumed' => 'Quantity Consumed',
+            'beneficiary_type' => 'Beneficiary Type',
+            'select_beneficiary' => 'Select beneficiary type',
+            'child' => 'Child',
+            'pregnant_woman' => 'Pregnant Woman',
+            'lactating_mother' => 'Lactating Mother',
+            'other' => 'Other',
+            'notes_optional' => 'Notes (Optional)',
+            'available_stock' => 'Available Stock:',
+            'save_consumption' => 'Save Consumption',
+            'recent_history' => 'Recent Consumption History',
+            'date' => 'Date',
+            'quantity' => 'Quantity',
+            'status' => 'Status',
+            'no_records' => 'No consumption records found.',
+            'enter_quantity' => 'Enter a quantity greater than zero.',
+            'exceeds_stock' => 'Consumption exceeds available stock.',
+            'role_worker' => 'Worker',
+            'role_helper' => 'Helper',
+            'role_supervisor' => 'Supervisor',
+            'role_cdpo' => 'CDPO',
+            'role_admin' => 'Admin',
+            'approved' => 'Approved',
+            'pending' => 'Pending',
+            'rejected' => 'Rejected',
+            'unknown' => 'Unknown'
+        ],
+        'gu' => [
+            'daily_consumption' => 'દૈનિક વપરાશ',
+            'daily_consumption_desc' => 'દૈનિક ખાદ્ય વપરાશની નોંધ કરો અને બાકી જથ્થો તપાસો.',
+            'record_consumption' => 'વપરાશની નોંધ કરો',
+            'food_item' => 'ખાદ્ય વસ્તુ',
+            'select_food_item' => 'ખાદ્ય વસ્તુ પસંદ કરો',
+            'consumption_date' => 'વપરાશની તારીખ',
+            'quantity_consumed' => 'વપરાયેલ જથ્થો',
+            'beneficiary_type' => 'લાભાર્થીનો પ્રકાર',
+            'select_beneficiary' => 'લાભાર્થીનો પ્રકાર પસંદ કરો',
+            'child' => 'બાળક',
+            'pregnant_woman' => 'ગર્ભવતી મહિલા',
+            'lactating_mother' => 'સ્તનપાન કરાવતી માતા',
+            'other' => 'અન્ય',
+            'notes_optional' => 'નોંધ (વૈકલ્પિક)',
+            'available_stock' => 'ઉપલબ્ધ જથ્થો:',
+            'save_consumption' => 'વપરાશ સાચવો',
+            'recent_history' => 'તાજેતરના વપરાશનો ઇતિહાસ',
+            'date' => 'તારીખ',
+            'quantity' => 'જથ્થો',
+            'status' => 'સ્થિતિ',
+            'no_records' => 'વપરાશની કોઈ નોંધ મળી નથી.',
+            'enter_quantity' => 'શૂન્ય કરતાં વધુ જથ્થો દાખલ કરો.',
+            'exceeds_stock' => 'વપરાશનો જથ્થો ઉપલબ્ધ જથ્થા કરતાં વધુ છે.',
+            'enter_quantity' => 'શૂન્ય કરતાં વધુ જથ્થો દાખલ કરો.',
+            'exceeds_stock' => 'વપરાશનો જથ્થો ઉપલબ્ધ જથ્થા કરતાં વધુ છે.',
+            'role_worker' => 'કાર્યકર',
+            'role_helper' => 'સહાયક',
+            'role_supervisor' => 'સુપરવાઇઝર',
+            'role_cdpo' => 'CDPO',
+            'role_admin' => 'એડમિન',
+            'approved' => 'મંજૂર',
+            'pending' => 'બાકી',
+            'rejected' => 'નામંજૂર',
+            'unknown' => 'અજ્ઞાત'
+        ]
+    ];
+
+    return $translations[$language][$key] ?? $translations['en'][$key] ?? $key;
+}
+
+function consumptionEscape($key)
+{
+    return htmlspecialchars(consumptionText($key), ENT_QUOTES, 'UTF-8');
+}
+
+function consumptionBeneficiary($value)
+{
+    $value = strtoupper((string) $value);
+    $keys = [
+        'CHILD' => 'child',
+        'PREGNANT_WOMAN' => 'pregnant_woman',
+        'LACTATING_MOTHER' => 'lactating_mother',
+        'OTHER' => 'other'
+    ];
+    return consumptionText($keys[$value] ?? 'unknown');
+}
+
+function consumptionStatus($value)
+{
+    $value = strtolower((string) $value);
+    $language = $_SESSION['language'] ?? 'gu';
+    $status = [
+        'approved' => ['en' => 'Approved', 'gu' => 'મંજૂર'],
+        'pending' => ['en' => 'Pending', 'gu' => 'બાકી'],
+        'rejected' => ['en' => 'Rejected', 'gu' => 'નામંજૂર']
+    ];
+    return $status[$value][$language] ?? ($status[$value]['en'] ?? consumptionText('unknown'));
+}
+
 /* -------------------------------------------------
    1. Check login and retrieve assigned centre
 ------------------------------------------------- */
@@ -54,7 +166,8 @@ try {
     $sql = "
         SELECT
             f.item_id AS id,
-            f.item_name_en AS name,
+            f.item_name_en,
+            f.item_name_gu,
             f.unit,
             COALESCE(
                 SUM(
@@ -94,6 +207,7 @@ try {
         GROUP BY
             f.item_id,
             f.item_name_en,
+            f.item_name_gu,
             f.unit
         ORDER BY f.item_name_en
     ";
@@ -105,7 +219,8 @@ try {
     /* Recent consumption history */
     $sql = "
         SELECT
-            f.item_name_en AS food_name,
+            f.item_name_en,
+            f.item_name_gu,
             f.unit,
             st.quantity,
             st.beneficiary_type,
@@ -155,13 +270,7 @@ try {
     >
 
     <title>
-        <?= htmlspecialchars(
-            translate('daily_consumption') !== 'daily_consumption'
-                ? translate('daily_consumption')
-                : 'Daily Consumption',
-            ENT_QUOTES,
-            'UTF-8'
-        ) ?>
+        <?= consumptionEscape('daily_consumption') ?>
         | <?= htmlspecialchars(APP_NAME, ENT_QUOTES, 'UTF-8') ?>
     </title>
 
@@ -329,23 +438,11 @@ try {
             <div class="page-heading">
                 <div>
                     <h2>
-                        <?= htmlspecialchars(
-                            translate('daily_consumption') !== 'daily_consumption'
-                                ? translate('daily_consumption')
-                                : 'Daily Consumption',
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>
+                        <?= consumptionEscape('daily_consumption') ?>
                     </h2>
 
                     <p class="subtitle">
-                        <?= htmlspecialchars(
-                            translate('daily_consumption_desc') !== 'daily_consumption_desc'
-                                ? translate('daily_consumption_desc')
-                                : 'Record daily food consumption and monitor remaining stock.',
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>
+                        <?= consumptionEscape('daily_consumption_desc') ?>
                     </p>
                 </div>
             </div>
@@ -374,13 +471,7 @@ try {
             <section class="panel">
 
                 <h3>
-                    <?= htmlspecialchars(
-                        translate('record_consumption') !== 'record_consumption'
-                            ? translate('record_consumption')
-                            : 'Record Consumption',
-                        ENT_QUOTES,
-                        'UTF-8'
-                    ) ?>
+                    <?= consumptionEscape('record_consumption') ?>
                 </h3>
 
                 <form
@@ -403,7 +494,7 @@ try {
 
                         <div class="field">
                             <label for="food_item_id">
-                                Food Item
+                                <?= consumptionEscape('food_item') ?>
                             </label>
 
                             <select
@@ -412,7 +503,7 @@ try {
                                 required
                             >
                                 <option value="">
-                                    Select food item
+                                    <?= consumptionEscape('select_food_item') ?>
                                 </option>
 
                                 <?php foreach ($items as $item): ?>
@@ -430,7 +521,9 @@ try {
                                         ) ?>"
                                     >
                                         <?= htmlspecialchars(
-                                            $item['name'],
+                                            ($language === 'gu' && !empty($item['item_name_gu']))
+                                                ? $item['item_name_gu']
+                                                : $item['item_name_en'],
                                             ENT_QUOTES,
                                             'UTF-8'
                                         ) ?>
@@ -441,7 +534,7 @@ try {
 
                         <div class="field">
                             <label for="consumption_date">
-                                Consumption Date
+                                <?= consumptionEscape('consumption_date') ?>
                             </label>
 
                             <input
@@ -456,7 +549,7 @@ try {
 
                         <div class="field">
                             <label for="quantity">
-                                Quantity Consumed
+                                <?= consumptionEscape('quantity_consumed') ?>
                             </label>
 
                             <input
@@ -471,7 +564,7 @@ try {
 
                         <div class="field">
                             <label for="beneficiary_type">
-                                Beneficiary Type
+                                <?= consumptionEscape('beneficiary_type') ?>
                             </label>
 
                             <select
@@ -480,23 +573,23 @@ try {
                                 required
                             >
                                 <option value="">
-                                    Select beneficiary type
+                                    <?= consumptionEscape('select_beneficiary') ?>
                                 </option>
 
                                 <option value="CHILD">
-                                    Child
+                                    <?= consumptionEscape('child') ?>
                                 </option>
 
                                 <option value="PREGNANT_WOMAN">
-                                    Pregnant Woman
+                                    <?= consumptionEscape('pregnant_woman') ?>
                                 </option>
 
                                 <option value="LACTATING_MOTHER">
-                                    Lactating Mother
+                                    <?= consumptionEscape('lactating_mother') ?>
                                 </option>
 
                                 <option value="OTHER">
-                                    Other
+                                    <?= consumptionEscape('other') ?>
                                 </option>
                             </select>
                         </div>
@@ -506,7 +599,7 @@ try {
                             style="grid-column: 1 / -1"
                         >
                             <label for="notes">
-                                Notes (Optional)
+                                <?= consumptionEscape('notes_optional') ?>
                             </label>
 
                             <textarea
@@ -520,7 +613,7 @@ try {
                     </div>
 
                     <div class="stock-box" aria-live="polite">
-                        <strong>Available Stock:</strong>
+                        <strong><?= consumptionEscape('available_stock') ?></strong>
 
                         <span id="available-stock">—</span>
 
@@ -532,7 +625,7 @@ try {
                         class="primary-btn"
                         id="save-consumption"
                     >
-                        Save Consumption
+                        <?= consumptionEscape('save_consumption') ?>
                     </button>
 
                 </form>
@@ -541,17 +634,17 @@ try {
             <!-- Recent Consumption History -->
             <section class="panel">
 
-                <h3>Recent Consumption History</h3>
+                <h3><?= consumptionEscape('recent_history') ?></h3>
 
                 <div class="table-wrap">
                     <table>
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Food Item</th>
-                                <th>Quantity</th>
-                                <th>Beneficiary Type</th>
-                                <th>Status</th>
+                                <th><?= consumptionEscape('date') ?></th>
+                                <th><?= consumptionEscape('food_item') ?></th>
+                                <th><?= consumptionEscape('quantity') ?></th>
+                                <th><?= consumptionEscape('beneficiary_type') ?></th>
+                                <th><?= consumptionEscape('status') ?></th>
                             </tr>
                         </thead>
 
@@ -559,7 +652,7 @@ try {
                             <?php if (empty($history)): ?>
                                 <tr>
                                     <td colspan="5">
-                                        No consumption records found.
+                                        <?= consumptionEscape('no_records') ?>
                                     </td>
                                 </tr>
                             <?php else: ?>
@@ -576,7 +669,7 @@ try {
 
                                         <td>
                                             <?= htmlspecialchars(
-                                                $record['food_name'] ?? '',
+                                                (($language === 'gu' && !empty($record['item_name_gu'])) ? $record['item_name_gu'] : ($record['item_name_en'] ?? '')),
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
@@ -597,19 +690,11 @@ try {
                                         </td>
 
                                         <td>
-                                            <?= htmlspecialchars(
-                                                $record['beneficiary_type'] ?? '—',
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
+                                            <?= htmlspecialchars(consumptionBeneficiary($record['beneficiary_type'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
                                         </td>
 
                                         <td>
-                                            <?= htmlspecialchars(
-                                                $record['status'] ?? '',
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
+                                            <?= htmlspecialchars(consumptionStatus($record['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -678,14 +763,14 @@ try {
             quantity <= 0
         ) {
             quantityInput.setCustomValidity(
-                'Enter a quantity greater than zero.'
+                <?= json_encode(consumptionText('enter_quantity'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
             );
         } else if (
             quantityInput.value !== '' &&
             quantity > stock
         ) {
             quantityInput.setCustomValidity(
-                'Consumption exceeds available stock.'
+                <?= json_encode(consumptionText('exceeds_stock'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
             );
         } else {
             quantityInput.setCustomValidity('');

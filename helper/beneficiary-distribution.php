@@ -10,6 +10,62 @@ if (empty($_SESSION['user_id']) || empty($_SESSION['centre_id'])) {
 $centreId = (int) $_SESSION['centre_id'];
 $fullName = $_SESSION['full_name'] ?? 'User';
 
+$language = (($_SESSION['language'] ?? 'gu') === 'en') ? 'en' : 'gu';
+
+function distributionText($key)
+{
+    $language = (($_SESSION['language'] ?? 'gu') === 'en') ? 'en' : 'gu';
+    $text = [
+        'en' => [
+            'no_centre'=>'No Anganwadi centre is assigned to this account.','page_title'=>'Beneficiary Distribution','page_description'=>'Record food distribution and track beneficiary-wise distribution history.',
+            'record_distribution'=>'Record Distribution','food_item'=>'Food Item','select_food_item'=>'Select food item',
+            'available'=>'Available','select_item_hint'=>'Select a food item to view available stock.',
+            'quantity_to_distribute'=>'Quantity to Distribute','enter_quantity'=>'Enter quantity','distribution_date'=>'Distribution Date',
+            'beneficiary_type'=>'Beneficiary Type','select_beneficiary'=>'Select beneficiary','child'=>'Child',
+            'pregnant_woman'=>'Pregnant Woman','lactating_mother'=>'Lactating Mother','other'=>'Other',
+            'beneficiary_count'=>'Number of Beneficiaries','example_25'=>'e.g. 25','notes_optional'=>'Notes (Optional)',
+            'enter_details'=>'Enter distribution details','submit_distribution'=>'Submit Distribution','distribution_history'=>'Distribution History',
+            'date'=>'Date','quantity'=>'Quantity','beneficiary'=>'Beneficiary','people'=>'People','status'=>'Status','notes'=>'Notes',
+            'no_records'=>'No distribution records found.','available_stock'=>'Available stock',
+            'quantity_positive'=>'Quantity must be greater than zero.','quantity_exceeds'=>'Quantity exceeds available stock.',
+            'database_error'=>'Unable to load distribution data. Please check the database.',
+            'status_pending'=>'Pending','status_approved'=>'Approved','status_rejected'=>'Rejected','status_other'=>'Unknown'
+        ],
+        'gu' => [
+            'no_centre'=>'આ એકાઉન્ટ સાથે કોઈ આંગણવાડી કેન્દ્ર જોડાયેલું નથી.','page_title'=>'લાભાર્થી વિતરણ','page_description'=>'ખાદ્ય વિતરણની નોંધ કરો અને લાભાર્થી મુજબનો ઇતિહાસ જુઓ.',
+            'record_distribution'=>'વિતરણની નોંધ કરો','food_item'=>'ખાદ્ય વસ્તુ','select_food_item'=>'ખાદ્ય વસ્તુ પસંદ કરો',
+            'available'=>'ઉપલબ્ધ','select_item_hint'=>'ઉપલબ્ધ જથ્થો જોવા માટે ખાદ્ય વસ્તુ પસંદ કરો.',
+            'quantity_to_distribute'=>'વિતરણ કરવાનો જથ્થો','enter_quantity'=>'જથ્થો દાખલ કરો','distribution_date'=>'વિતરણની તારીખ',
+            'beneficiary_type'=>'લાભાર્થીનો પ્રકાર','select_beneficiary'=>'લાભાર્થી પસંદ કરો','child'=>'બાળક',
+            'pregnant_woman'=>'ગર્ભવતી મહિલા','lactating_mother'=>'સ્તનપાન કરાવતી માતા','other'=>'અન્ય',
+            'beneficiary_count'=>'લાભાર્થીઓની સંખ્યા','example_25'=>'દા.ત. 25','notes_optional'=>'નોંધ (વૈકલ્પિક)',
+            'enter_details'=>'વિતરણની વિગતો દાખલ કરો','submit_distribution'=>'વિતરણ સબમિટ કરો','distribution_history'=>'વિતરણનો ઇતિહાસ',
+            'date'=>'તારીખ','quantity'=>'જથ્થો','beneficiary'=>'લાભાર્થી','people'=>'લોકો','status'=>'સ્થિતિ','notes'=>'નોંધ',
+            'no_records'=>'વિતરણની કોઈ નોંધ મળી નથી.','available_stock'=>'ઉપલબ્ધ જથ્થો',
+            'quantity_positive'=>'જથ્થો શૂન્ય કરતાં વધુ હોવો જોઈએ.','quantity_exceeds'=>'જથ્થો ઉપલબ્ધ જથ્થા કરતાં વધારે છે.',
+            'database_error'=>'વિતરણની માહિતી લોડ થઈ શકી નથી. કૃપા કરીને ડેટાબેઝ તપાસો.',
+            'status_pending'=>'બાકી','status_approved'=>'મંજૂર','status_rejected'=>'નામંજૂર','status_other'=>'અજ્ઞાત'
+        ]
+    ];
+    return $text[$language][$key] ?? $text['en'][$key] ?? $key;
+}
+function distributionEscape($value) {
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+function distributionFoodName($row, $language) {
+    return ($language === 'gu' && !empty($row['item_name_gu']))
+        ? $row['item_name_gu'] : ($row['item_name_en'] ?? '');
+}
+function distributionBeneficiaryLabel($value) {
+    $keys = ['CHILD'=>'child','PREGNANT_WOMAN'=>'pregnant_woman','LACTATING_MOTHER'=>'lactating_mother','OTHER'=>'other'];
+    return distributionText($keys[$value] ?? 'other');
+}
+function distributionStatusLabel($status) {
+    $key = 'status_' . strtolower((string)$status);
+    return distributionText(in_array($key, ['status_pending','status_approved','status_rejected'], true) ? $key : 'status_other');
+}
+
+
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -24,6 +80,7 @@ try {
         SELECT
             f.item_id,
             f.item_name_en,
+            f.item_name_gu,
             f.unit,
             COALESCE(SUM(
                 CASE
@@ -51,7 +108,7 @@ try {
            AND st.centre_id = b.centre_id
            AND st.item_id = f.item_id
         WHERE f.is_active = 1
-        GROUP BY f.item_id, f.item_name_en, f.unit
+        GROUP BY f.item_id, f.item_name_en, f.item_name_gu, f.unit
         ORDER BY f.item_name_en
     ");
     $stockStmt->execute([$centreId]);
@@ -62,6 +119,7 @@ try {
         SELECT
             st.transaction_id,
             f.item_name_en,
+            f.item_name_gu,
             f.unit,
             st.quantity,
             st.beneficiary_type,
@@ -83,24 +141,24 @@ try {
     error_log('Beneficiary distribution page error: ' . $e->getMessage());
     $foodItems = [];
     $history = [];
-    $errorMessage = 'Unable to load distribution data. Please check the database.';
+    $errorMessage = distributionText('database_error');
 }
 
 $beneficiaryLabels = [
-    'CHILD' => 'Child',
-    'PREGNANT_WOMAN' => 'Pregnant Woman',
-    'LACTATING_MOTHER' => 'Lactating Mother',
-    'OTHER' => 'Other'
+    'CHILD' => 'child',
+    'PREGNANT_WOMAN' => 'pregnant_woman',
+    'LACTATING_MOTHER' => 'lactating_mother',
+    'OTHER' => 'other'
 ];
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= distributionEscape($language) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beneficiary Distribution | AnnaSetu</title>
+    <title><?= distributionEscape(distributionText('page_title')) ?> | <?= distributionEscape(defined('APP_NAME') ? APP_NAME : 'AnnaSetu') ?></title>
 
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <link rel="stylesheet" href="<?= distributionEscape(APP_URL) ?>/assets/css/dashboard.css?v=2">
 
     <style>
         .distribution-content {
@@ -299,9 +357,9 @@ $beneficiaryLabels = [
     <?php require __DIR__ . '/../includes/page-header.php'; ?>
 
     <main class="distribution-content">
-        <h1 class="distribution-title">Beneficiary Distribution</h1>
+        <h1 class="distribution-title"><?= distributionEscape(distributionText('page_title')) ?></h1>
         <p class="distribution-subtitle">
-            Record food distribution and track beneficiary-wise distribution history.
+            <?= distributionEscape(distributionText('page_description')) ?>
         </p>
 
         <?php if ($errorMessage !== ''): ?>
@@ -318,7 +376,7 @@ $beneficiaryLabels = [
 
         <div class="distribution-grid">
             <section class="distribution-card">
-                <h2>Record Distribution</h2>
+                <h2><?= distributionEscape(distributionText('record_distribution')) ?></h2>
 
                 <form
                     action="../actions/save-distribution.php"
@@ -333,10 +391,10 @@ $beneficiaryLabels = [
 
                     <div class="distribution-form-grid">
                         <div class="distribution-field full-width">
-                            <label for="food_item_id">Food Item *</label>
+                            <label for="food_item_id"><?= distributionEscape(distributionText('food_item')) ?> *</label>
 
                             <select id="food_item_id" name="food_item_id" required>
-                                <option value="">Select food item</option>
+                                <option value=""><?= distributionEscape(distributionText('select_food_item')) ?></option>
 
                                 <?php foreach ($foodItems as $food): ?>
                                     <?php $available = max(0, (float)$food['available_stock']); ?>
@@ -346,8 +404,8 @@ $beneficiaryLabels = [
                                         data-unit="<?= htmlspecialchars($food['unit'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                                         <?= $available <= 0 ? 'disabled' : '' ?>
                                     >
-                                        <?= htmlspecialchars($food['item_name_en'], ENT_QUOTES, 'UTF-8') ?>
-                                        — Available:
+                                        <?= distributionEscape(distributionFoodName($food, $language)) ?>
+                                        — <?= distributionEscape(distributionText('available')) ?>:
                                         <?= number_format($available, 3) ?>
                                         <?= htmlspecialchars($food['unit'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                                     </option>
@@ -355,12 +413,12 @@ $beneficiaryLabels = [
                             </select>
 
                             <span id="available-stock" class="stock-hint">
-                                Select a food item to view available stock.
+                                <?= distributionEscape(distributionText('select_item_hint')) ?>
                             </span>
                         </div>
 
                         <div class="distribution-field">
-                            <label for="quantity">Quantity to Distribute *</label>
+                            <label for="quantity"><?= distributionEscape(distributionText('quantity_to_distribute')) ?> *</label>
                             <input
                                 type="number"
                                 id="quantity"
@@ -368,12 +426,12 @@ $beneficiaryLabels = [
                                 min="0.001"
                                 step="0.001"
                                 required
-                                placeholder="Enter quantity"
+                                placeholder="<?= distributionEscape(distributionText('enter_quantity')) ?>"
                             >
                         </div>
 
                         <div class="distribution-field">
-                            <label for="distribution_date">Distribution Date *</label>
+                            <label for="distribution_date"><?= distributionEscape(distributionText('distribution_date')) ?> *</label>
                             <input
                                 type="date"
                                 id="distribution_date"
@@ -385,23 +443,23 @@ $beneficiaryLabels = [
                         </div>
 
                         <div class="distribution-field">
-                            <label for="beneficiary_type">Beneficiary Type *</label>
+                            <label for="beneficiary_type"><?= distributionEscape(distributionText('beneficiary_type')) ?> *</label>
                             <select
                                 id="beneficiary_type"
                                 name="beneficiary_type"
                                 required
                             >
-                                <option value="">Select beneficiary</option>
+                                <option value=""><?= distributionEscape(distributionText('select_beneficiary')) ?></option>
                                 <?php foreach ($beneficiaryLabels as $value => $label): ?>
                                     <option value="<?= htmlspecialchars($value, ENT_QUOTES, 'UTF-8') ?>">
-                                        <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
+                                        <?= distributionEscape(distributionText($label)) ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
 
                         <div class="distribution-field">
-                            <label for="beneficiary_count">Number of Beneficiaries *</label>
+                            <label for="beneficiary_count"><?= distributionEscape(distributionText('beneficiary_count')) ?> *</label>
                             <input
                                 type="number"
                                 id="beneficiary_count"
@@ -409,17 +467,17 @@ $beneficiaryLabels = [
                                 min="1"
                                 step="1"
                                 required
-                                placeholder="e.g. 25"
+                                placeholder="<?= distributionEscape(distributionText('example_25')) ?>"
                             >
                         </div>
 
                         <div class="distribution-field full-width">
-                            <label for="notes">Notes (Optional)</label>
+                            <label for="notes"><?= distributionEscape(distributionText('notes_optional')) ?></label>
                             <textarea
                                 id="notes"
                                 name="notes"
                                 maxlength="500"
-                                placeholder="Enter distribution details"
+                                placeholder="<?= distributionEscape(distributionText('enter_details')) ?>"
                             ></textarea>
                         </div>
 
@@ -429,7 +487,7 @@ $beneficiaryLabels = [
                                 class="distribution-submit"
                                 id="distribution-submit"
                             >
-                                Submit Distribution
+                                <?= distributionEscape(distributionText('submit_distribution')) ?>
                             </button>
                         </div>
                     </div>
@@ -437,26 +495,26 @@ $beneficiaryLabels = [
             </section>
 
             <section class="distribution-card">
-                <h2>Distribution History</h2>
+                <h2><?= distributionEscape(distributionText('distribution_history')) ?></h2>
 
                 <div class="distribution-table-wrap">
                     <table class="distribution-table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Food Item</th>
-                                <th>Quantity</th>
-                                <th>Beneficiary</th>
-                                <th>People</th>
-                                <th>Status</th>
-                                <th>Notes</th>
+                                <th><?= distributionEscape(distributionText('date')) ?></th>
+                                <th><?= distributionEscape(distributionText('food_item')) ?></th>
+                                <th><?= distributionEscape(distributionText('quantity')) ?></th>
+                                <th><?= distributionEscape(distributionText('beneficiary')) ?></th>
+                                <th><?= distributionEscape(distributionText('people')) ?></th>
+                                <th><?= distributionEscape(distributionText('status')) ?></th>
+                                <th><?= distributionEscape(distributionText('notes')) ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (!$history): ?>
                                 <tr>
                                     <td colspan="7" class="distribution-empty">
-                                        No distribution records found.
+                                        <?= distributionEscape(distributionText('no_records')) ?>
                                     </td>
                                 </tr>
                             <?php else: ?>
@@ -468,24 +526,20 @@ $beneficiaryLabels = [
                                     <tr>
                                         <td>
                                             <?= htmlspecialchars(
-                                                date('d M Y', strtotime($record['transaction_date'])),
+                                                date('d-m-Y', strtotime($record['transaction_date'])),
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
                                         </td>
                                         <td>
-                                            <?= htmlspecialchars($record['item_name_en'], ENT_QUOTES, 'UTF-8') ?>
+                                            <?= distributionEscape(distributionFoodName($record, $language)) ?>
                                         </td>
                                         <td>
                                             <?= number_format((float)$record['quantity'], 3) ?>
                                             <?= htmlspecialchars($record['unit'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                                         </td>
                                         <td>
-                                            <?= htmlspecialchars(
-                                                $beneficiaryLabels[$record['beneficiary_type'] ?? ''] ?? ($record['beneficiary_type'] ?? '—'),
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
+                                            <?= distributionEscape(distributionBeneficiaryLabel($record['beneficiary_type'] ?? 'OTHER')) ?>
                                         </td>
                                         <td>
                                             <?= $record['beneficiary_count'] === null
@@ -494,7 +548,7 @@ $beneficiaryLabels = [
                                         </td>
                                         <td>
                                             <span class="distribution-status <?= htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8') ?>">
-                                                <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>
+                                                <?= distributionEscape(distributionStatusLabel($status)) ?>
                                             </span>
                                         </td>
                                         <td>
@@ -514,6 +568,13 @@ $beneficiaryLabels = [
 <?php require __DIR__ . '/../includes/footer.php'; ?>
 
 <script>
+const distributionMessages = <?= json_encode([
+    'selectItem' => distributionText('select_item_hint'),
+    'availableStock' => distributionText('available_stock'),
+    'quantityPositive' => distributionText('quantity_positive'),
+    'quantityExceeds' => distributionText('quantity_exceeds')
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
 (() => {
     const itemSelect = document.getElementById('food_item_id');
     const quantityInput = document.getElementById('quantity');
@@ -526,7 +587,7 @@ $beneficiaryLabels = [
         if (!option || !option.value) {
             quantityInput.removeAttribute('max');
             quantityInput.setCustomValidity('');
-            stockHint.textContent = 'Select a food item to view available stock.';
+            stockHint.textContent = distributionMessages.selectItem;
             return;
         }
 
@@ -535,7 +596,7 @@ $beneficiaryLabels = [
 
         quantityInput.max = stock;
         stockHint.textContent =
-            'Available stock: ' + stock.toFixed(3) + ' ' + unit;
+            distributionMessages.availableStock + ': ' + stock.toFixed(3) + ' ' + unit;
 
         validateQuantity();
     }
@@ -552,9 +613,9 @@ $beneficiaryLabels = [
         const quantity = Number(quantityInput.value);
 
         if (quantity <= 0) {
-            quantityInput.setCustomValidity('Quantity must be greater than zero.');
+            quantityInput.setCustomValidity(distributionMessages.quantityPositive);
         } else if (quantity > stock) {
-            quantityInput.setCustomValidity('Quantity exceeds available stock.');
+            quantityInput.setCustomValidity(distributionMessages.quantityExceeds);
         } else {
             quantityInput.setCustomValidity('');
         }
